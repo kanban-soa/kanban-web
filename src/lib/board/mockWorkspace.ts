@@ -29,7 +29,7 @@ export const mockState: BoardsManagementState = {
       id: "default-board:todo",
       boardId: "default-board",
       title: "To do",
-      taskIds: ["task-1"],
+      cardIds: ["card-1"],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -38,7 +38,7 @@ export const mockState: BoardsManagementState = {
       id: "default-board:doing",
       boardId: "default-board",
       title: "Doing",
-      taskIds: ["task-2"],
+      cardIds: ["card-2"],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -47,15 +47,15 @@ export const mockState: BoardsManagementState = {
       id: "default-board:done",
       boardId: "default-board",
       title: "Done",
-      taskIds: [],
+      cardIds: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
   },
 
-  tasks: {
-    "task-1": {
-      id: "task-1",
+  cards: {
+    "card-1": {
+      id: "card-1",
       boardId: "default-board",
       listId: "default-board:todo",
       title: "Setup project",
@@ -66,8 +66,8 @@ export const mockState: BoardsManagementState = {
       updatedAt: new Date().toISOString(),
     },
 
-    "task-2": {
-      id: "task-2",
+    "card-2": {
+      id: "card-2",
       boardId: "default-board",
       listId: "default-board:doing",
       title: "Build UI",

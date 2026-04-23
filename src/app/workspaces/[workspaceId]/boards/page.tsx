@@ -142,7 +142,7 @@ export default function BoardsPage() {
           >
             <div className="text-base font-semibold">Delete board</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              This will remove the board and all its lists and tasks. This action cannot be undone.
+              This will remove the board and all its lists and cards. This action cannot be undone.
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={() => setDeleteBoardId(null)}>

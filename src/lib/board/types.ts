@@ -20,12 +20,12 @@ export type List = {
   id: Id;
   boardId: Id;
   title: string;
-  taskIds: Id[];
+  cardIds: Id[];
   createdAt: string;
   updatedAt: string;
 };
 
-export type Task = {
+export type card = {
   id: Id;
   boardId: Id;
   listId: Id;
@@ -41,6 +41,6 @@ export type BoardsManagementState = {
   workspaces: Record<Id, Workspace>;
   boards: Record<Id, Board>;
   lists: Record<Id, List>;
-  tasks: Record<Id, Task>;
+  cards: Record<Id, card>;
 };
 

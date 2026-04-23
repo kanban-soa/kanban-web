@@ -17,7 +17,7 @@ export function BoardView({
   workspaceId: Id;
   boardId: Id;
 }) {
-  const { getBoard, getListsForBoard, getTasksForList, isLoading, initBoard, createList, createTask, deleteList } =
+  const { getBoard, getListsForBoard, getcardsForList, isLoading, initBoard, createList, createcard, deleteList } =
     useBoardsManagement(workspaceId);
   const board = getBoard(boardId);
   const lists = getListsForBoard(boardId);
@@ -101,8 +101,8 @@ export function BoardView({
                 boardId={boardId}
                 listId={list.id}
                 title={list.title}
-                tasks={getTasksForList(list.id)}
-                onAddTask={(t, d) => createTask(boardId, list.id, t, d)}
+                cards={getcardsForList(list.id)}
+                onAddcard={(t, d) => createcard(boardId, list.id, t, d)}
                 onDeleteList={() => deleteList(boardId, list.id)}
               />
             ))
@@ -156,21 +156,21 @@ function ListColumn({
   boardId,
   listId,
   title,
-  tasks,
-  onAddTask,
+  cards,
+  onAddcard,
   onDeleteList,
 }: {
   workspaceId: Id;
   boardId: Id;
   listId: Id;
   title: string;
-  tasks: { id: Id; title: string; description: string; labels?: string[] }[];
-  onAddTask: (title: string, description: string) => void;
+  cards: { id: Id; title: string; description: string; labels?: string[] }[];
+  onAddcard: (title: string, description: string) => void;
   onDeleteList: () => void;
 }) {
-  const [taskTitle, setTaskTitle] = React.useState("");
-  const [taskDescription, setTaskDescription] = React.useState("");
-  const [isTaskOpen, setIsTaskOpen] = React.useState(false);
+  const [cardTitle, setcardTitle] = React.useState("");
+  const [cardDescription, setcardDescription] = React.useState("");
+  const [iscardOpen, setIscardOpen] = React.useState(false);
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
 
@@ -179,7 +179,7 @@ function ListColumn({
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{title}</div>
-          <div className="text-xs text-muted-foreground">{tasks.length} tasks</div>
+          <div className="text-xs text-muted-foreground">{cards.length} cards</div>
         </div>
         <div className="relative flex items-center gap-1">
           <Button
@@ -187,10 +187,10 @@ function ListColumn({
             type="button"
             variant="ghost"
             className="rounded-full bg-muted/60 text-muted-foreground hover:bg-muted cursor-pointer"
-            onClick={() => setIsTaskOpen(true)}
+            onClick={() => setIscardOpen(true)}
           >
             <Plus />
-            <span className="sr-only">New task</span>
+            <span className="sr-only">New card</span>
           </Button>
           <Button
             size="icon-sm"
@@ -226,10 +226,10 @@ function ListColumn({
       </div>
 
       <div className="space-y-2 p-3">
-        {tasks.map((t) => (
+        {cards.map((t) => (
           <Link
             key={t.id}
-            href={`/workspaces/${workspaceId}/boards/${boardId}/tasks/${t.id}`}
+            href={`/workspaces/${workspaceId}/boards/${boardId}/cards/${t.id}`}
             className="block rounded-lg border bg-card px-3 py-2 text-sm shadow-sm transition hover:bg-muted/40 cursor-pointer"
           >
             <div className="font-medium leading-5">{t.title}</div>
@@ -258,31 +258,31 @@ function ListColumn({
 
       </div>
 
-      {isTaskOpen ? (
+      {iscardOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/20"
-            onClick={() => setIsTaskOpen(false)}
+            onClick={() => setIscardOpen(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
             className="relative z-10 w-full max-w-md rounded-xl border bg-background p-5 shadow-lg"
           >
-            <div className="text-base font-semibold">New task</div>
+            <div className="text-base font-semibold">New card</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              Add a title and description for this task.
+              Add a title and description for this card.
             </div>
             <div className="mt-4 space-y-3">
               <Input
-                value={taskTitle}
-                onChange={(e) => setTaskTitle(e.target.value)}
-                placeholder="Task title…"
+                value={cardTitle}
+                onChange={(e) => setcardTitle(e.target.value)}
+                placeholder="card title…"
               />
               <textarea
-                value={taskDescription}
-                onChange={(e) => setTaskDescription(e.target.value)}
-                placeholder="Task description…"
+                value={cardDescription}
+                onChange={(e) => setcardDescription(e.target.value)}
+                placeholder="card description…"
                 className={cn(
                   "min-h-[120px] w-full rounded-xl border border-input bg-transparent p-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
                 )}
@@ -291,17 +291,17 @@ function ListColumn({
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => setIsTaskOpen(false)}
+                  onClick={() => setIscardOpen(false)}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="button"
                   onClick={() => {
-                    onAddTask(taskTitle, taskDescription);
-                    setTaskTitle("");
-                    setTaskDescription("");
-                    setIsTaskOpen(false);
+                    onAddcard(cardTitle, cardDescription);
+                    setcardTitle("");
+                    setcardDescription("");
+                    setIscardOpen(false);
                   }}
                 >
                   Create
@@ -325,7 +325,7 @@ function ListColumn({
           >
             <div className="text-base font-semibold">Delete list</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              This will remove the list and all its tasks. This action cannot be undone.
+              This will remove the list and all its cards. This action cannot be undone.
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={() => setIsDeleteOpen(false)}>
