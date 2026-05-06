@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function LoginForm() {
+export default function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -16,18 +16,19 @@ export default function LoginForm() {
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email");
     const password = formData.get("password");
+    const name = formData.get("name");
 
-    console.log("Logging in with:", { email, password });
-
+    console.log("Registering with:", { name, email, password });
+    
+    // Placeholder for API call to localhost:8080
     try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
+      const response = await fetch("http://localhost:8080/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name, email, password }),
       });
       const data = await response.json();
       console.log("Success:", data);
-      // Here you would typically store the token and redirect
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -43,22 +44,31 @@ export default function LoginForm() {
           kan.bn
         </span>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Welcome back
+          Create an account
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in to continue to your workspace.
+          Enter your details below to create your account.
         </p>
 
         <div className="mt-8 w-full max-w-sm rounded-2xl border border-border/60 bg-card/80 p-6 text-left shadow-sm backdrop-blur">
           <form className="space-y-4" onSubmit={onSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                name="name"
+                placeholder="John Doe"
+                required
+                className="h-10"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="Enter your email address"
-                autoComplete="email"
+                placeholder="name@example.com"
                 required
                 className="h-10"
               />
@@ -75,21 +85,18 @@ export default function LoginForm() {
               />
             </div>
             <Button type="submit" className="h-10 w-full bg-foreground text-background hover:bg-foreground/90" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
-            </Button>
-            <Button asChild variant="ghost" className="h-10 w-full">
-              <Link href="/workspaces/default/boards">Continue as guest</Link>
+              {isLoading ? "Creating account..." : "Sign up"}
             </Button>
           </form>
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          Already have an account?{" "}
           <Link
-            href="/signup"
+            href="/"
             className="font-medium text-foreground underline-offset-4 hover:underline"
           >
-            Sign up
+            Sign in
           </Link>
         </p>
       </div>

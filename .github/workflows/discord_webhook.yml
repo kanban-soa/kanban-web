@@ -1,0 +1,52 @@
+name: Discord PR Notification
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    types: [opened, reopened]
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{
+            "embeds": [{
+              "title": "🔀 New Pull Request to '"${{ github.event.pull_request.base.ref }}"'",
+              "description": "'"${{ github.event.pull_request.title }}"'",
+              "color": 5814783,
+              "fields": [
+                {
+                  "name": "👤 Author",
+                  "value": "'"${{ github.event.pull_request.user.login }}"'",
+                  "inline": true
+                },
+                {
+                  "name": "🌿 Branch",
+                  "value": "'"${{ github.event.pull_request.head.ref }}"' → '"${{ github.event.pull_request.base.ref }}"' ",
+                  "inline": true
+                },
+                {
+                  "name": "🔢 PR Number",
+                  "value": "#'"${{ github.event.pull_request.number }}"'",
+                  "inline": true
+                },
+                {
+                  "name": "🔗 Link",
+                  "value": "'"${{ github.event.pull_request.html_url }}"'"
+                }
+              ],
+              "footer": {
+                "text": "'"${{ github.repository }}"'"
+              },
+              "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+            }]
+          }' \
+          $DISCORD_WEBHOOK
