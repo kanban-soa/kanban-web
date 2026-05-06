@@ -5,9 +5,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -17,18 +20,24 @@ export default function LoginForm() {
     const email = formData.get("email");
     const password = formData.get("password");
 
-    console.log("Logging in with:", { email, password });
-
     try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
+      const response = await fetch("http://localhost:8080/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await response.json();
-      console.log("Success:", data);
-      // Here you would typically store the token and redirect
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success("Logged in successfully!");
+        // Here you would typically store the token
+        router.push("/workspaces/default/boards");
+      } else {
+        const errorData = await response.json();
+        toast.error(`Error: ${errorData.message || "Invalid credentials"}`);
+      }
     } catch (error) {
+      toast.error("Network error. Make sure your server is running on port 8080.");
       console.error("Error:", error);
     } finally {
       setIsLoading(false);
@@ -74,7 +83,11 @@ export default function LoginForm() {
                 className="h-10"
               />
             </div>
-            <Button type="submit" className="h-10 w-full bg-foreground text-background hover:bg-foreground/90" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="h-10 w-full bg-foreground text-background hover:bg-foreground/90"
+              disabled={isLoading}
+            >
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
             <Button asChild variant="ghost" className="h-10 w-full">

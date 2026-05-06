@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,18 +21,25 @@ export default function SignupForm() {
     const password = formData.get("password");
     const name = formData.get("name");
 
-    console.log("Registering with:", { name, email, password });
-    
-    // Placeholder for API call to localhost:8080
     try {
-      const response = await fetch("http://localhost:8080/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
-      const data = await response.json();
-      console.log("Success:", data);
+      const response = await fetch(
+        "http://localhost:8080/api/v1/auth/register",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
+        },
+      );
+
+      if (response.ok) {
+        toast.success("Account created successfully!");
+        router.push("/login");
+      } else {
+        const errorData = await response.json();
+        toast.error(`Error: ${errorData.message || "Failed to register"}`);
+      }
     } catch (error) {
+      toast.error("Network error. Make sure your server is running on port 8080.");
       console.error("Error:", error);
     } finally {
       setIsLoading(false);
@@ -84,7 +94,11 @@ export default function SignupForm() {
                 className="h-10"
               />
             </div>
-            <Button type="submit" className="h-10 w-full bg-foreground text-background hover:bg-foreground/90" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="h-10 w-full bg-foreground text-background hover:bg-foreground/90"
+              disabled={isLoading}
+            >
               {isLoading ? "Creating account..." : "Sign up"}
             </Button>
           </form>
