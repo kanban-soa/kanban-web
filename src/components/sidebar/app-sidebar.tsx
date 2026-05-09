@@ -57,6 +57,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const navItems = [
+  { title: "Workspaces", icon: Zap, href: "/workspaces" },
   { title: "Boards", icon: Table, href: "/workspaces/default/boards" },
   { title: "Statistic", icon: ChartColumnIncreasing, href: "/statistic" },
   { title: "Members", icon: UsersRound, href: "/member" },
