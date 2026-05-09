@@ -1,9 +1,52 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { login, register } from "@/lib/api/auth.api";
+
+type Mode = "login" | "register";
 
 export default function LoginForm() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      if (mode === "login") {
+        await login({ email, password });
+      } else {
+        if (!name.trim()) {
+          setError("Name is required");
+          setLoading(false);
+          return;
+        }
+        await register({ email, password, name });
+      }
+      router.push("/workspaces/default/boards");
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "response" in err
+          ? ((err as { response: { data?: { message?: string } } }).response?.data?.message ?? "Something went wrong")
+          : "Something went wrong";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#00000014_1px,transparent_1px)] [background-size:18px_18px]" />
@@ -12,10 +55,12 @@ export default function LoginForm() {
           kan.bn
         </span>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Welcome back
+          {mode === "login" ? "Welcome back" : "Create an account"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in to continue to your workspace.
+          {mode === "login"
+            ? "Sign in to continue to your workspace."
+            : "Sign up to get started with your workspace."}
         </p>
 
         <div className="mt-8 w-full max-w-sm rounded-2xl border border-border/60 bg-card/80 p-6 text-left shadow-sm backdrop-blur">
@@ -40,7 +85,23 @@ export default function LoginForm() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <form className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "register" && (
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="Enter your name"
+                  autoComplete="name"
+                  className="h-10"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
               <Input
@@ -50,26 +111,52 @@ export default function LoginForm() {
                 placeholder="Enter your email address"
                 autoComplete="email"
                 className="h-10"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </div>
-            <Button variant="outline" className="h-10 w-full">
-              Continue with magic link
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                className="h-10"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
+
+            <Button type="submit" disabled={loading} className="h-10 w-full">
+              {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Sign up"}
             </Button>
+
+            <Button type="button" variant="outline" className="h-10 w-full" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>
+              {mode === "login" ? "Create an account" : "Back to sign in"}
+            </Button>
+
             <Button asChild variant="secondary" className="h-10 w-full">
               <Link href="/workspaces/default/boards">Continue as guest</Link>
             </Button>
           </form>
         </div>
 
-        <p className="mt-6 text-xs text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            Sign up
-          </Link>
-        </p>
+        {mode === "login" && (
+          <p className="mt-6 text-xs text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <button type="button" onClick={() => { setMode("register"); setError(""); }} className="font-medium text-foreground underline-offset-4 hover:underline">
+              Sign up
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
