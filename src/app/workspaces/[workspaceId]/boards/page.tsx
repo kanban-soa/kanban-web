@@ -2,28 +2,26 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardsManagement } from "@/hooks/use-board";
+import { useWorkspace } from "@/hooks/use-workspaces";
 
 export default function BoardsPage() {
   const params = useParams<{ workspaceId: string }>();
   const workspaceId = params.workspaceId;
   const router = useRouter();
 
-  const { workspace, boards, createBoard, deleteBoard } = useBoardsManagement(workspaceId);
+  const { data: workspace, isLoading: isWorkspaceLoading } = useWorkspace(workspaceId);
+  const { boards, createBoard, deleteBoard } = useBoardsManagement(workspaceId);
   const [title, setTitle] = React.useState("");
-  const [mounted, setMounted] = React.useState(false);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [deleteBoardId, setDeleteBoardId] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const workspaceName = mounted ? (workspace?.name ?? workspaceId) : workspaceId;
+  const workspaceName = workspace?.name ?? workspaceId;
 
   return (
     <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
@@ -31,13 +29,15 @@ export default function BoardsPage() {
         <div className="flex items-center justify-between gap-3 px-6 py-4">
           <div>
             <div className="text-lg font-semibold tracking-tight">Boards</div>
-            <div className="text-xs text-muted-foreground">{workspaceName}</div>
+            <div className="text-xs text-muted-foreground">
+              {isWorkspaceLoading ? (
+                <Skeleton className="inline-block h-4 w-24" />
+              ) : (
+                workspaceName
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* <Button variant="outline" size="sm" type="button">
-              <Upload />
-              Import
-            </Button> */}
             <Button className="px-4 py-3 font-bold " type="button" onClick={() => setIsCreateOpen(true)}>
               <Plus />
               New
@@ -165,4 +165,3 @@ export default function BoardsPage() {
     </div>
   );
 }
-

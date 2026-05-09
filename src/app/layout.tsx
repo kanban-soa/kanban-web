@@ -4,6 +4,7 @@ import "./globals.css";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { QueryProvider } from "@/providers/query-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,9 +34,11 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full">
         <ThemeProvider>
-          <SidebarProvider>
-            <AppSidebar>{children}</AppSidebar>
-          </SidebarProvider>
+          <QueryProvider>
+            <SidebarProvider>
+              <AppSidebar>{children}</AppSidebar>
+            </SidebarProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
