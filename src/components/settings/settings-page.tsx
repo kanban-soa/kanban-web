@@ -229,7 +229,7 @@ export default function SettingsPage() {
         <header className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-            <ThemeToggle className="h-9 w-9" />
+            {/*<ThemeToggle className="h-9 w-9" />*/}
           </div>
           <nav className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             {tabs.map((tab) => (
