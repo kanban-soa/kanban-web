@@ -9,6 +9,21 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Id } from "@/lib/board/types";
 import { useBoardsManagement } from "@/hooks/use-board";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export function BoardView({
   workspaceId,
@@ -17,13 +32,51 @@ export function BoardView({
   workspaceId: Id;
   boardId: Id;
 }) {
-  const { getBoard, getListsForBoard, getcardsForList, isLoading, initBoard, createList, createcard, deleteList } =
-    useBoardsManagement(workspaceId);
+  const {
+    getBoard,
+    getListsForBoard,
+    getcardsForList,
+    isLoading,
+    initBoard,
+    createList,
+    createcard,
+    deleteList,
+    updateBoard,
+    deleteBoard,
+  } = useBoardsManagement(workspaceId);
   const board = getBoard(boardId);
   const lists = getListsForBoard(boardId);
 
   const [newListTitle, setNewListTitle] = React.useState("");
   const [isListOpen, setIsListOpen] = React.useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [boardTitle, setBoardTitle] = React.useState(board?.title ?? "");
+  const [boardDescription, setBoardDescription] = React.useState(
+    board?.description ?? "",
+  );
+
+  React.useEffect(() => {
+    if (board) {
+      setBoardTitle(board.title);
+      setBoardDescription(board.description);
+    }
+  }, [board]);
+
+  const handleUpdateBoard = () => {
+    if (board) {
+      updateBoard(board.id, {
+        title: boardTitle,
+        description: boardDescription,
+      });
+      setIsEditModalOpen(false);
+    }
+  };
+
+  const handleDeleteBoard = () => {
+    deleteBoard(boardId);
+    setIsDeleteModalOpen(false);
+  };
 
   if (isLoading) {
     return (
@@ -59,7 +112,12 @@ export function BoardView({
       <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between gap-3 px-6 py-4">
           <div className="min-w-0">
-            <div className="truncate text-lg font-semibold tracking-tight">{board.title}</div>
+            <div className="truncate text-lg font-semibold tracking-tight">
+              {board.title}
+            </div>
+            <div className="mt-0.5 text-sm text-muted-foreground">
+              {board.description}
+            </div>
             <div className="mt-0.5 text-xs text-muted-foreground">
               {lists.length} lists
             </div>
@@ -77,14 +135,101 @@ export function BoardView({
         </div>
         <div className="px-6 pb-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-xs text-muted-foreground">Create a new list for this board.</div>
-            <Button variant="outline" type="button" onClick={() => setIsListOpen(true)}>
-              <Plus />
-              Add list
-            </Button>
+            <div className="text-xs text-muted-foreground">
+              Create a new list for this board.
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setIsListOpen(true)}
+              >
+                <Plus />
+                Add list
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
+                    Edit Board
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setIsDeleteModalOpen(true)}
+                    className="text-red-600"
+                  >
+                    Delete Board
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Board</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="name"
+                value={boardTitle}
+                onChange={(e) => setBoardTitle(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                value={boardDescription}
+                onChange={(e) => setBoardDescription(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleUpdateBoard}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+          </DialogHeader>
+          <div>
+            <p>
+              This action will permanently delete the board{" "}
+              <strong>{board.title}</strong> and all its contents. This
+              cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteBoard}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="h-[calc(100vh-8.5rem)] w-full overflow-x-auto px-6 py-6">
         <div className="flex min-w-full items-start gap-4">
@@ -258,93 +403,82 @@ function ListColumn({
 
       </div>
 
-      {iscardOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIscardOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-background p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold">New card</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Add a title and description for this card.
-            </div>
-            <div className="mt-4 space-y-3">
+      <Dialog open={iscardOpen} onOpenChange={setIscardOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New card</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="card-title" className="text-right">
+                Title
+              </Label>
               <Input
+                id="card-title"
                 value={cardTitle}
                 onChange={(e) => setcardTitle(e.target.value)}
-                placeholder="card title…"
+                className="col-span-3"
+                placeholder="Card title…"
               />
-              <textarea
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="card-description" className="text-right">
+                Description
+              </Label>
+              <Textarea
+                id="card-description"
                 value={cardDescription}
                 onChange={(e) => setcardDescription(e.target.value)}
-                placeholder="card description…"
-                className={cn(
-                  "min-h-[120px] w-full rounded-xl border border-input bg-transparent p-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                )}
+                className="col-span-3"
+                placeholder="Card description…"
               />
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setIscardOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    onAddcard(cardTitle, cardDescription);
-                    setcardTitle("");
-                    setcardDescription("");
-                    setIscardOpen(false);
-                  }}
-                >
-                  Create
-                </Button>
-              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => {
+                onAddcard(cardTitle, cardDescription);
+                setcardTitle("");
+                setcardDescription("");
+                setIscardOpen(false);
+              }}
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {isDeleteOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIsDeleteOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-background p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold">Delete list</div>
-            <div className="mt-1 text-xs text-muted-foreground">
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete list</DialogTitle>
+          </DialogHeader>
+          <div>
+            <p>
               This will remove the list and all its cards. This action cannot be undone.
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={() => setIsDeleteOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                type="button"
-                onClick={() => {
-                  onDeleteList();
-                  setIsDeleteOpen(false);
-                }}
-              >
-                Delete
-              </Button>
-            </div>
+            </p>
           </div>
-        </div>
-      ) : null}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onDeleteList();
+                setIsDeleteOpen(false);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

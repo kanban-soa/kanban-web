@@ -11,6 +11,7 @@ export type Board = {
   id: Id;
   workspaceId: Id;
   title: string;
+  description: string;
   listIds: Id[];
   createdAt: string;
   updatedAt: string;

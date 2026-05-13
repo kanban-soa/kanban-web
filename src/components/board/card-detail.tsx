@@ -10,6 +10,14 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Id } from "@/lib/board/types";
 import { useBoardsManagement } from "@/hooks/use-board";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export function CardDetailPage({
   workspaceId,
@@ -263,40 +271,31 @@ export function CardDetailPage({
         </div>
       </div>
 
-      {isDeleteOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIsDeleteOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-background p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold">Delete card</div>
-            <div className="mt-1 text-xs text-muted-foreground">
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete card</DialogTitle>
+            <DialogDescription>
               This action cannot be undone.
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={() => setIsDeleteOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                type="button"
-                onClick={() => {
-                  deletecard(cardId);
-                  setIsDeleteOpen(false);
-                  router.push(`/workspaces/${workspaceId}/boards/${boardId}`);
-                }}
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                deletecard(cardId);
+                setIsDeleteOpen(false);
+                router.push(`/workspaces/${workspaceId}/boards/${boardId}`);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isLabelOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

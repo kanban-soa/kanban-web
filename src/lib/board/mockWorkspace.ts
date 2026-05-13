@@ -14,6 +14,7 @@ export const mockState: BoardsManagementState = {
       id: "default-board",
       workspaceId: "default",
       title: "Main Board",
+      description: "This is the main board for the default workspace.",
       listIds: [
         "default-board:todo",
         "default-board:doing",

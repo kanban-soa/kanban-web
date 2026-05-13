@@ -30,6 +30,7 @@ function ensureWorkspaceInitialized(workspaceId: Id): BoardsManagementState {
 
 type BoardsManagementActions = {
   createBoard: (title: string) => Id;
+  updateBoard: (boardId: Id, patch: Partial<Pick<Board, "title" | "description">>) => void;
   initBoard: (boardId: Id) => void;
   deleteBoard: (boardId: Id) => void;
   createList: (boardId: Id, title: string) => Id;
@@ -109,6 +110,26 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       return id;
     },
     [persist, state, workspaceId],
+  );
+
+  const updateBoard = React.useCallback(
+    (boardId: Id, patch: Partial<Pick<Board, "title" | "description">>) => {
+      const board = state.boards[boardId];
+      if (!board) return;
+
+      const next = structuredClone(state) as BoardsManagementState;
+      const t = nowIso();
+
+      if (patch.title) {
+        next.boards[boardId].title = patch.title;
+      }
+      if (patch.description) {
+        next.boards[boardId].description = patch.description;
+      }
+      next.boards[boardId].updatedAt = t;
+      persist(next);
+    },
+    [persist, state],
   );
 
   const initBoard = React.useCallback(
@@ -282,6 +303,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     getcard,
     isLoading,
     createBoard,
+    updateBoard,
     initBoard,
     deleteBoard,
     createList,

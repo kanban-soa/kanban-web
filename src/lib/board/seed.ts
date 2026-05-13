@@ -21,6 +21,7 @@ export function seedBoard(state: BoardsManagementState, workspaceId: Id, boardId
     id: boardId,
     workspaceId,
     title,
+    description: "",
     listIds: [],
     createdAt: t,
     updatedAt: t,

@@ -6,7 +6,6 @@ import { CardDetailPage } from "@/components/board/card-detail";
 
 export default function CardPage() {
   const params = useParams<{ workspaceId: string; boardId: string; cardId: string }>();
-
   return (
     <CardDetailPage
       workspaceId={params.workspaceId}
