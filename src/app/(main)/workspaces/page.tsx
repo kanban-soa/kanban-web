@@ -1,12 +1,24 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { UserPlus } from "lucide-react";
 import { useWorkspaces } from "@/hooks/use-workspaces";
+import { InviteMemberDialog } from "@/components/member/invite-member-dialog";
 
 export default function WorkspacesPage() {
   const router = useRouter();
   const { data: workspaces, isLoading } = useWorkspaces();
+  const [inviteWorkspaceId, setInviteWorkspaceId] = React.useState("");
+  const [inviteWorkspaceName, setInviteWorkspaceName] = React.useState("");
+
+  const handleInvite = (e: React.MouseEvent, ws: { id: string; name: string }) => {
+    e.stopPropagation();
+    setInviteWorkspaceId(ws.id);
+    setInviteWorkspaceName(ws.name);
+  };
 
   return (
     <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
@@ -49,17 +61,38 @@ export default function WorkspacesPage() {
                 <div className="flex size-12 items-center justify-center rounded-lg bg-muted text-lg font-bold">
                   {ws.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="ml-4 text-left">
+                <div className="ml-4 text-left flex-1 min-w-0">
                   <div className="text-base font-semibold tracking-tight">{ws.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {ws.members?.length ?? 0} members
+                    {ws.members ?? 0} members
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleInvite(e, ws)}
+                  className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity gap-1"
+                  title="Invite member"
+                >
+                  <UserPlus className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <InviteMemberDialog
+        workspaceId={inviteWorkspaceId}
+        workspaceName={inviteWorkspaceName}
+        open={!!inviteWorkspaceId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInviteWorkspaceId("");
+            setInviteWorkspaceName("");
+          }
+        }}
+      />
     </div>
   );
 }

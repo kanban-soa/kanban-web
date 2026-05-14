@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listWorkspaces, getWorkspace, createWorkspace } from "@/lib/api/workspace.api";
+import { listWorkspaces, getWorkspace, createWorkspace, inviteMember } from "@/lib/api/workspace.api";
+import type { InviteMemberRequest } from "@/lib/api/types";
 
 export function useWorkspaces() {
   return useQuery({
@@ -22,6 +23,16 @@ export function useCreateWorkspace() {
     mutationFn: createWorkspace,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
+}
+
+export function useInviteMember(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: InviteMemberRequest) => inviteMember(workspaceId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId] });
     },
   });
 }
