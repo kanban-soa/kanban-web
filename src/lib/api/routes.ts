@@ -15,7 +15,23 @@ export const WORKSPACES = {
   LIST: "/api/v1/workspaces",
   CREATE: "/api/v1/workspaces",
   DETAIL: (id: string) => `/api/v1/workspaces/${id}`,
-  INVITE: (workspaceId: string) => `/api/workspaces/${workspaceId}/members`,
+  INVITE: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/members`,
+} as const;
+
+// ── Members ────────────────────────────────────────────────────────────────
+export const MEMBERS = {
+  LIST: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/members`,
+  CHANGE_ROLE: (workspaceId: string, memberId: string) =>
+    `/api/v1/workspaces/${workspaceId}/members/${memberId}/role`,
+  REMOVE: (workspaceId: string, memberId: string) =>
+    `/api/v1/workspaces/${workspaceId}/members/${memberId}`,
+} as const;
+
+// ── Invitations ─────────────────────────────────────────────────────────────
+export const INVITATIONS = {
+  LIST: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/invitations`,
+  CANCEL: (workspaceId: string, invitationId: string) =>
+    `/api/v1/workspaces/${workspaceId}/invitations/${invitationId}`,
 } as const;
 
 // ── Boards ──────────────────────────────────────────────────────────────────

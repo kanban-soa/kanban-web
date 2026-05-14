@@ -4,51 +4,21 @@ import React from "react";
 import { Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-
-interface Invitation {
-  id: string;
-  email: string;
-  role: "Owner" | "Member" | "Observer";
-  sentAt: string;
-  workspace: string;
-  onAccept?: () => void;
-  onReject?: () => void;
-}
+import { Skeleton } from "@/components/ui/skeleton";
+import { useInvitations, useCancelInvitation } from "@/hooks/use-members";
+import type { Invitation } from "@/lib/api/types";
 
 interface InvitationListProps {
-  invitations?: Invitation[];
+  workspaceId: string;
 }
 
-const defaultInvitations: Invitation[] = [
-  {
-    id: "1",
-    email: "john.doe@company.com",
-    role: "Member",
-    sentAt: "Sent 2 days ago",
-    workspace: "Design Collective",
-  },
-  {
-    id: "2",
-    email: "lisa.park@company.com",
-    role: "Observer",
-    sentAt: "Sent 1 week ago",
-    workspace: "Design Collective",
-  },
-  {
-    id: "3",
-    email: "team.lead@company.com",
-    role: "Member",
-    sentAt: "Sent 3 days ago",
-    workspace: "Design Collective",
-  },
-];
+export function InvitationList({ workspaceId }: InvitationListProps) {
+  const { data: invitations, isLoading } = useInvitations(workspaceId);
+  const cancelInvitation = useCancelInvitation(workspaceId);
 
-export function InvitationList({
-  invitations = defaultInvitations,
-}: InvitationListProps) {
   const [isRemoveOpen, setIsRemoveOpen] = React.useState(false);
-  const [selectedInvitation, setSelectedInvitation] = React.useState<Invitation | null>(null);
+  const [selectedInvitation, setSelectedInvitation] =
+    React.useState<Invitation | null>(null);
 
   const handleRemoveInvitation = (invitation: Invitation) => {
     setSelectedInvitation(invitation);
@@ -57,11 +27,31 @@ export function InvitationList({
 
   const confirmRemove = () => {
     if (selectedInvitation) {
-      console.log("Removing invitation for:", selectedInvitation.email);
+      cancelInvitation.mutate(selectedInvitation.id, {
+        onSuccess: () => {
+          setIsRemoveOpen(false);
+          setSelectedInvitation(null);
+        },
+      });
     }
-    setIsRemoveOpen(false);
-    setSelectedInvitation(null);
   };
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl bg-muted-900 border border-muted-700 shadow-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-muted-700 bg-card">
+          <Skeleton className="h-4 w-32" />
+        </div>
+        {[1, 2].map((i) => (
+          <div key={i} className="px-6 py-4 border-b border-muted-700">
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const invitationList = invitations ?? [];
 
   return (
     <div className="rounded-xl bg-muted-900 border border-muted-700 shadow-lg overflow-hidden">
@@ -69,19 +59,20 @@ export function InvitationList({
       <div className="px-6 py-4 border-b border-muted-700 bg-card">
         <p className="text-sm font-semibold text-white">Pending Invitations</p>
         <p className="text-xs text-muted-400 mt-1">
-          {invitations.length} invitation{invitations.length !== 1 ? "s" : ""} pending
+          {invitationList.length} invitation
+          {invitationList.length !== 1 ? "s" : ""} pending
         </p>
       </div>
 
       {/* Invitations List */}
-      {invitations.length > 0 ? (
+      {invitationList.length > 0 ? (
         <div className="divide-y divide-muted-700">
-          {invitations.map((invitation) => (
+          {invitationList.map((invitation) => (
             <div
               key={invitation.id}
               className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-muted-800 transition-colors"
             >
-              {/* Left: Email, Role, Time, Workspace */}
+              {/* Left: Email, Role, Time */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
                   {invitation.email}
@@ -113,14 +104,14 @@ export function InvitationList({
                 </p>
               </div>
 
-              {/* Remove Button */}
+              {/* Cancel Button */}
               <div className="shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleRemoveInvitation(invitation)}
                   className="h-8 w-8 p-0 hover:bg-red-950 hover:border-red-700"
-                  title="Remove invitation"
+                  title="Cancel invitation"
                 >
                   <X className="h-4 w-4 text-red-600" />
                 </Button>
@@ -134,7 +125,7 @@ export function InvitationList({
         </div>
       )}
 
-      {/* Remove Invitation Confirmation Modal */}
+      {/* Cancel Invitation Confirmation Modal */}
       {isRemoveOpen && selectedInvitation ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
@@ -146,9 +137,12 @@ export function InvitationList({
             aria-modal="true"
             className="relative z-10 w-full max-w-md rounded-xl border bg-black p-5 shadow-lg"
           >
-            <div className="text-base font-semibold text-white">Cancel Invitation</div>
+            <div className="text-base font-semibold text-white">
+              Cancel Invitation
+            </div>
             <div className="mt-1 text-xs text-muted-400">
-              Are you sure you want to remove the invitation for {selectedInvitation.email}?
+              Are you sure you want to cancel the invitation for{" "}
+              {selectedInvitation.email}?
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button
@@ -162,9 +156,12 @@ export function InvitationList({
               <Button
                 type="button"
                 onClick={confirmRemove}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={cancelInvitation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
               >
-                Remove Invitation
+                {cancelInvitation.isPending
+                  ? "Cancelling..."
+                  : "Cancel Invitation"}
               </Button>
             </div>
           </div>

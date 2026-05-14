@@ -17,6 +17,19 @@ export type Account = {
   name: string;
 };
 
+export type Member = {
+  id: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  status: "active" | "away";
+  avatar?: string;
+};
+
+export type ChangeRoleRequest = {
+  role: WorkspaceRole;
+};
+
 export type Invitation = {
   id: string;
   email: string;

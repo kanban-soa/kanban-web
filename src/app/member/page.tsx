@@ -111,7 +111,7 @@ export default function MemberPage() {
             <h2 className="text-lg font-semibold text-white mb-4">
               Active Members
             </h2>
-            <MembersTable />
+            <MembersTable workspaceId={currentWorkspaceId} />
           </div>
 
           {/* Pending Invitations */}
@@ -119,7 +119,7 @@ export default function MemberPage() {
             <h2 className="text-lg font-semibold text-white mb-4">
               Invitations
             </h2>
-            <InvitationList />
+            <InvitationList workspaceId={currentWorkspaceId} />
           </div>
         </div>
       </div>

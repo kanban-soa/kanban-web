@@ -4,53 +4,21 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MoreVertical, LogOut, Shield } from "lucide-react";
-
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: "Owner" | "Member" | "Observer";
-  status: "active" | "away";
-  avatar?: string;
-}
+import { LogOut, Shield } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  useMembers,
+  useChangeMemberRole,
+  useRemoveMember,
+} from "@/hooks/use-members";
+import type { Member, WorkspaceRole } from "@/lib/api/types";
 
 interface MembersTableProps {
-  members?: Member[];
+  workspaceId: string;
 }
 
-const defaultMembers: Member[] = [
-  {
-    id: "1",
-    name: "Sarah Chen",
-    email: "sarah.chen@company.com",
-    role: "Owner",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Marcus Johnson",
-    email: "marcus.j@company.com",
-    role: "Member",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Emma Wilson",
-    email: "emma.w@company.com",
-    role: "Member",
-    status: "away",
-  },
-  {
-    id: "4",
-    name: "Alex Rodriguez",
-    email: "alex.r@company.com",
-    role: "Observer",
-    status: "active",
-  },
-];
-
-function getInitials(name: string): string {
+function getInitials(name?: string): string {
+  if (!name) return "?";
   return name
     .split(" ")
     .map((n) => n[0])
@@ -58,11 +26,19 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function MembersTable({ members = defaultMembers }: MembersTableProps) {
+export function MembersTable({ workspaceId }: MembersTableProps) {
+  const { data: members, isLoading } = useMembers(workspaceId);
+  const changeRole = useChangeMemberRole(workspaceId);
+  const removeMember = useRemoveMember(workspaceId);
+
   const [isDeactivateOpen, setIsDeactivateOpen] = React.useState(false);
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = React.useState(false);
-  const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<"Owner" | "Member" | "Observer">("Member");
+  const [selectedMember, setSelectedMember] = React.useState<Member | null>(
+    null,
+  );
+  const [selectedRole, setSelectedRole] = React.useState<WorkspaceRole>(
+    "Member",
+  );
 
   const handleDeactivate = (member: Member) => {
     setSelectedMember(member);
@@ -77,19 +53,53 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
 
   const confirmDeactivate = () => {
     if (selectedMember) {
-      console.log("Deactivating member:", selectedMember.name);
+      removeMember.mutate(selectedMember.id, {
+        onSuccess: () => {
+          setIsDeactivateOpen(false);
+          setSelectedMember(null);
+        },
+      });
     }
-    setIsDeactivateOpen(false);
-    setSelectedMember(null);
   };
 
   const confirmRoleSwitch = () => {
     if (selectedMember) {
-      console.log("Switching role for:", selectedMember.name, "to", selectedRole);
+      changeRole.mutate(
+        { memberId: selectedMember.id, payload: { role: selectedRole } },
+        {
+          onSuccess: () => {
+            setIsRoleSwitchOpen(false);
+            setSelectedMember(null);
+          },
+        },
+      );
     }
-    setIsRoleSwitchOpen(false);
-    setSelectedMember(null);
   };
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl bg-muted-900 border border-muted-700 shadow-lg overflow-hidden">
+        <div className="px-6 py-4 bg-card border-b border-muted-700">
+          <Skeleton className="h-4 w-24" />
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="px-6 py-4 border-b border-muted-700">
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!members || members.length === 0) {
+    return (
+      <div className="rounded-xl bg-muted-900 border border-muted-700 shadow-lg overflow-hidden">
+        <div className="px-6 py-8 text-center">
+          <p className="text-sm text-muted-400">No members in this workspace</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl bg-muted-900 border border-muted-700 shadow-lg overflow-hidden">
@@ -121,14 +131,14 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
               <div
                 className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-semibold text-sm text-white",
-                  "bg-gradient-to-br from-blue-500 to-blue-600"
+                  "bg-gradient-to-br from-blue-500 to-blue-600",
                 )}
               >
                 {getInitials(member.name)}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  {member.name}
+                  {member.name ?? member.email}
                 </p>
                 <p className="text-xs text-muted-400 truncate">
                   {member.email}
@@ -159,7 +169,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                   "h-2.5 w-2.5 rounded-full",
                   member.status === "active"
                     ? "bg-emerald-500"
-                    : "bg-yellow-500"
+                    : "bg-yellow-500",
                 )}
               />
               <span className="text-sm text-muted-300 capitalize">
@@ -184,7 +194,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                 size="sm"
                 onClick={() => handleDeactivate(member)}
                 className="h-8 px-2 text-xs gap-1 hover:bg-red-950 hover:border-red-700"
-                title="Deactivate member"
+                title="Remove member"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Remove</span>
@@ -194,7 +204,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
         ))}
       </div>
 
-      {/* Deactivate Confirmation Modal */}
+      {/* Remove Member Confirmation Modal */}
       {isDeactivateOpen && selectedMember ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
@@ -206,9 +216,12 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
             aria-modal="true"
             className="relative z-10 w-full max-w-md rounded-xl border bg-muted-900 border-muted-700 p-5 shadow-lg"
           >
-            <div className="text-base font-semibold text-white">Remove Member</div>
+            <div className="text-base font-semibold text-white">
+              Remove Member
+            </div>
             <div className="mt-1 text-xs text-muted-400">
-              Are you sure you want to remove {selectedMember.name} from this workspace?
+              Are you sure you want to remove {selectedMember.name} from this
+              workspace?
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button
@@ -222,9 +235,10 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
               <Button
                 type="button"
                 onClick={confirmDeactivate}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                disabled={removeMember.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
               >
-                Remove Member
+                {removeMember.isPending ? "Removing..." : "Remove Member"}
               </Button>
             </div>
           </div>
@@ -243,7 +257,9 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
             aria-modal="true"
             className="relative z-10 w-full max-w-md rounded-xl border bg-muted-700 border-muted-700 p-5 shadow-lg"
           >
-            <div className="text-base font-semibold text-white">Change Role</div>
+            <div className="text-base font-semibold text-white">
+              Change Role
+            </div>
             <div className="mt-1 text-xs text-muted-400">
               Update role for {selectedMember.name}
             </div>
@@ -254,7 +270,9 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                 </label>
                 <select
                   value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as "Owner" | "Member" | "Observer")}
+                  onChange={(e) =>
+                    setSelectedRole(e.target.value as WorkspaceRole)
+                  }
                   className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/50"
                 >
                   <option value="Owner">Owner</option>
@@ -274,9 +292,10 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                 <Button
                   type="button"
                   onClick={confirmRoleSwitch}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={changeRole.isPending}
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 >
-                  Update Role
+                  {changeRole.isPending ? "Updating..." : "Update Role"}
                 </Button>
               </div>
             </div>
