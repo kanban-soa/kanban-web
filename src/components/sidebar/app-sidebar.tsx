@@ -13,6 +13,8 @@ import {
   Plus,
   ChartColumnIncreasing,
   Zap,
+  MoonStar,
+  SunMedium,
 } from "lucide-react";
 
 import {
@@ -28,7 +30,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ThemeProvider, useTheme } from "@/components/theme/theme-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +54,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const navItems = [
   { title: "Boards", icon: Table, href: "/workspaces/default/boards" },
@@ -74,6 +77,26 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   children?: React.ReactNode;
 };
 
+function UserMenuThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <DropdownMenuItem
+      onClick={(e) => {
+        e.preventDefault();
+        toggleTheme();
+      }}
+      className="cursor-pointer"
+    >
+      {theme === "dark" ? (
+        <SunMedium className="size-4 mr-2" />
+      ) : (
+        <MoonStar className="size-4 mr-2" />
+      )}
+      Toggle Theme
+    </DropdownMenuItem>
+  );
+}
+
 export function AppSidebar({ children, ...props }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -94,8 +117,26 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
     return <>{children}</>;
   }
 
-  const handleLogout = () => {
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      // In a real app, you might want to read the token from cookies or local storage 
+      // if your logout API requires an Authorization header.
+      // Assuming cookies are sent automatically or it's a simple POST to invalidate session.
+      const response = await fetch("http://localhost:8080/api/v1/auth/logout", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        toast.success("Logged out successfully");
+      } else {
+        toast.error("Logout might have failed on server, proceeding anyway");
+      }
+    } catch (error) {
+      console.error("Logout API error:", error);
+      toast.error("Network error during logout");
+    } finally {
+      router.push("/login");
+    }
   };
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -288,6 +329,8 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                     className="w-56"
                   >
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <UserMenuThemeToggle />
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleLogout}
