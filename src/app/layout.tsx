@@ -34,10 +34,12 @@ export default function RootLayout({
       className={`h-full antialiased ${geistSans.variable} ${geistMono.variable}`}
     >
       <body suppressHydrationWarning className="min-h-full">
-        <ThemeProvider>
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider>
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

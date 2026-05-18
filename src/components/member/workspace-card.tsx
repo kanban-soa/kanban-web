@@ -77,8 +77,8 @@ export function WorkspaceCard({
       </div>
 
       {/* Locked Message */}
-      <div className="rounded-lg bg-blue-950 border border-blue-800 p-3">
-        <p className="text-xs text-blue-200">
+      <div className="rounded-lg bg-gray-600 border border-muted-800 p-3">
+        <p className="text-xs text-gray-200">
           This workspace information is managed by administrators. Contact your workspace owner to make changes.
         </p>
       </div>
