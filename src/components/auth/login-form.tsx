@@ -31,7 +31,11 @@ export default function LoginForm() {
       if (response.ok) {
         const data = await response.json();
         toast.success("Logged in successfully!");
-        // Here you would typically store the token
+        
+        localStorage.setItem("access_token", data.token);
+        localStorage.setItem("refresh_token", data.refreshToken);
+        localStorage.setItem("user", JSON.stringify(data.user));
+
         router.push("/workspaces/default/boards");
       } else {
         const errorData = await response.json();
