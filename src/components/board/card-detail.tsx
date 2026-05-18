@@ -211,7 +211,7 @@ export function CardDetailPage({
                           }}
                         >
                           <span className={isActive ? "font-medium" : "font-normal"}>{l.title}</span>
-                          {isActive && <Check className="h-4 w-4 text-blue-500" />}
+                          {isActive && <Check className="h-4 w-4 text-gray-500" />}
                         </button>
                       );
                     })}
@@ -261,7 +261,7 @@ export function CardDetailPage({
                               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: label.color }} />
                               <span className={isChecked ? "font-medium" : "font-normal"}>{label.text}</span>
                             </div>
-                            {isChecked && <Check className="h-4 w-4 text-blue-500" />}
+                            {isChecked && <Check className="h-4 w-4 text-gray-500" />}
                           </button>
                         );
                       })}
@@ -334,7 +334,7 @@ export function CardDetailPage({
                             onClick={() => toggleMember(name)}
                           >
                             <span>{name}</span>
-                            {isChecked && <Check className="h-4 w-4 text-blue-500" />}
+                            {isChecked && <Check className="h-4 w-4 text-gray-500" />}
                           </button>
                         );
                       })}

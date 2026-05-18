@@ -54,11 +54,11 @@ export function InviteMemberDialog({
             });
           }
           
-          console.error("Invite error:", {
-            status,
-            message,
-            error,
-          });
+          // console.error("Invite error:", {
+          //   status,
+          //   message,
+          //   error,
+          // });
         },
       },
     );

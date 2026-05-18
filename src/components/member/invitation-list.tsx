@@ -55,11 +55,11 @@ export function InvitationList({
             });
           }
           
-          console.error("Remove invitation error:", {
-            status,
-            message,
-            error,
-          });
+          // console.error("Remove invitation error:", {
+          //   status,
+          //   message,
+          //   error,
+          // });
         },
       });
     }
