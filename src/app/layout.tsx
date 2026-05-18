@@ -35,13 +35,8 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full">
         <ThemeProvider>
-          {/* {children} */}
+          {children}
           <Toaster />
-          <QueryProvider>
-            <SidebarProvider>
-              <AppSidebar>{children}</AppSidebar>
-            </SidebarProvider>
-          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
