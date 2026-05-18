@@ -8,6 +8,7 @@ import { MoreVertical, LogOut, Shield } from "lucide-react";
 import type { MemberRequest, WorkspaceRole } from "@/lib/api/types";
 import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 
 interface MembersTableProps {
   members?: MemberRequest[];
@@ -47,8 +48,35 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
     if (selectedMember) {
       removeMemberMutation.mutate(String(selectedMember.id), {
         onSuccess: () => {
+          toast.success("Member removed", {
+            description: `${selectedMember.name} has been removed from the workspace.`,
+          });
           setIsDeactivateOpen(false);
           setSelectedMember(null);
+        },
+        onError: (error: any) => {
+          const status = error?.response?.status;
+          const message = error?.response?.data?.message || "Failed to remove member";
+          
+          if (status === 404) {
+            toast.error("Member not found", {
+              description: "The member could not be found.",
+            });
+          } else if (status === 500) {
+            toast.error("Server error", {
+              description: "The server is temporarily unavailable. Please try again.",
+            });
+          } else {
+            toast.error("Error", {
+              description: message,
+            });
+          }
+          
+          console.error("Remove member error:", {
+            status,
+            message,
+            error,
+          });
         },
       });
     }
@@ -60,8 +88,35 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
         { role: selectedRole as WorkspaceRole },
         {
           onSuccess: () => {
+            toast.success("Role updated", {
+              description: `${selectedMember.name}'s role has been changed to ${selectedRole}.`,
+            });
             setIsRoleSwitchOpen(false);
             setSelectedMember(null);
+          },
+          onError: (error: any) => {
+            const status = error?.response?.status;
+            const message = error?.response?.data?.message || "Failed to update role";
+            
+            if (status === 404) {
+              toast.error("Member not found", {
+                description: "The member could not be found.",
+              });
+            } else if (status === 500) {
+              toast.error("Server error", {
+                description: "The server is temporarily unavailable. Please try again.",
+              });
+            } else {
+              toast.error("Error", {
+                description: message,
+              });
+            }
+            
+            console.error("Change role error:", {
+              status,
+              message,
+              error,
+            });
           },
         }
       );
@@ -181,7 +236,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-muted-900 border-muted-700 p-5 shadow-lg"
+            className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
           >
             <div className="text-base font-semibold text-white">Remove Member</div>
             <div className="mt-1 text-xs text-muted-400">

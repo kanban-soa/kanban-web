@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useRemoveInvitation } from "@/hooks/use-workspaces";
 import type { Invitation } from "@/lib/api/types";
+import { toast } from "sonner";
 
 interface InvitationListProps {
   invitations?: Invitation[];
@@ -30,8 +31,35 @@ export function InvitationList({
     if (selectedInvitation) {
       removeInvitationMutation.mutate(selectedInvitation.id, {
         onSuccess: () => {
+          toast.success("Invitation cancelled", {
+            description: `Invitation to ${selectedInvitation.email} has been cancelled.`,
+          });
           setIsRemoveOpen(false);
           setSelectedInvitation(null);
+        },
+        onError: (error: any) => {
+          const status = error?.response?.status;
+          const message = error?.response?.data?.message || "Failed to cancel invitation";
+          
+          if (status === 404) {
+            toast.error("Invitation not found", {
+              description: "The invitation could not be found.",
+            });
+          } else if (status === 500) {
+            toast.error("Server error", {
+              description: "The server is temporarily unavailable. Please try again.",
+            });
+          } else {
+            toast.error("Error", {
+              description: message,
+            });
+          }
+          
+          console.error("Remove invitation error:", {
+            status,
+            message,
+            error,
+          });
         },
       });
     }

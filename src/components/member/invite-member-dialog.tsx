@@ -4,6 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { useInviteMember } from "@/hooks/use-workspaces";
 import type { WorkspaceRole } from "@/lib/api/types";
+import { toast } from "sonner";
 
 interface InviteMemberDialogProps {
   workspaceId: string;
@@ -28,9 +29,36 @@ export function InviteMemberDialog({
       { email: inviteEmail.trim(), role: inviteRole },
       {
         onSuccess: () => {
+          toast.success("Invitation sent successfully", {
+            description: `Invitation sent to ${inviteEmail}`,
+          });
           setInviteEmail("");
           setInviteRole("Member");
           onOpenChange(false);
+        },
+        onError: (error: any) => {
+          const status = error?.response?.status;
+          const message = error?.response?.data?.message || "Failed to send invitation";
+          
+          if (status === 404) {
+            toast.error("Invalid email", {
+              description: "The email address is not valid or not registered.",
+            });
+          } else if (status === 500) {
+            toast.error("Server error", {
+              description: "The server is temporarily unavailable. Please try again.",
+            });
+          } else {
+            toast.error("Error", {
+              description: message,
+            });
+          }
+          
+          console.error("Invite error:", {
+            status,
+            message,
+            error,
+          });
         },
       },
     );
