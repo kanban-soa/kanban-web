@@ -17,6 +17,23 @@ export type Account = {
   name: string;
 };
 
+export type MemberRequest = {
+  id: number;
+  publicId: string;
+  email: string;
+  name: string | null;
+  userId: string;
+  workspaceId: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  role: string;
+  roleId: string | null;
+  status: string;
+};
+
 export type Invitation = {
   id: string;
   email: string;
@@ -27,5 +44,9 @@ export type Invitation = {
 
 export type InviteMemberRequest = {
   email: string;
+  role: WorkspaceRole;
+};
+
+export type ChangeRoleRequest = {
   role: WorkspaceRole;
 };

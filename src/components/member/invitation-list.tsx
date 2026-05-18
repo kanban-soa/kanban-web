@@ -5,50 +5,21 @@ import { Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-interface Invitation {
-  id: string;
-  email: string;
-  role: "Owner" | "Member" | "Observer";
-  sentAt: string;
-  workspace: string;
-  onAccept?: () => void;
-  onReject?: () => void;
-}
+import { useRemoveInvitation } from "@/hooks/use-workspaces";
+import type { Invitation } from "@/lib/api/types";
 
 interface InvitationListProps {
   invitations?: Invitation[];
+  workspaceId: string;
 }
 
-const defaultInvitations: Invitation[] = [
-  {
-    id: "1",
-    email: "john.doe@company.com",
-    role: "Member",
-    sentAt: "Sent 2 days ago",
-    workspace: "Design Collective",
-  },
-  {
-    id: "2",
-    email: "lisa.park@company.com",
-    role: "Observer",
-    sentAt: "Sent 1 week ago",
-    workspace: "Design Collective",
-  },
-  {
-    id: "3",
-    email: "team.lead@company.com",
-    role: "Member",
-    sentAt: "Sent 3 days ago",
-    workspace: "Design Collective",
-  },
-];
-
 export function InvitationList({
-  invitations = defaultInvitations,
+  invitations = [],
+  workspaceId,
 }: InvitationListProps) {
   const [isRemoveOpen, setIsRemoveOpen] = React.useState(false);
   const [selectedInvitation, setSelectedInvitation] = React.useState<Invitation | null>(null);
+  const removeInvitationMutation = useRemoveInvitation(workspaceId);
 
   const handleRemoveInvitation = (invitation: Invitation) => {
     setSelectedInvitation(invitation);
@@ -57,10 +28,13 @@ export function InvitationList({
 
   const confirmRemove = () => {
     if (selectedInvitation) {
-      console.log("Removing invitation for:", selectedInvitation.email);
+      removeInvitationMutation.mutate(selectedInvitation.id, {
+        onSuccess: () => {
+          setIsRemoveOpen(false);
+          setSelectedInvitation(null);
+        },
+      });
     }
-    setIsRemoveOpen(false);
-    setSelectedInvitation(null);
   };
 
   return (

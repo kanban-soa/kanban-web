@@ -5,52 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MoreVertical, LogOut, Shield } from "lucide-react";
-
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: "Owner" | "Member" | "Observer";
-  status: "active" | "away";
-  avatar?: string;
-}
+import type { MemberRequest, WorkspaceRole } from "@/lib/api/types";
+import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
+import { useParams } from "next/navigation";
 
 interface MembersTableProps {
-  members?: Member[];
+  members?: MemberRequest[];
+  workspaceId: string;
 }
 
-const defaultMembers: Member[] = [
-  {
-    id: "1",
-    name: "Sarah Chen",
-    email: "sarah.chen@company.com",
-    role: "Owner",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Marcus Johnson",
-    email: "marcus.j@company.com",
-    role: "Member",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Emma Wilson",
-    email: "emma.w@company.com",
-    role: "Member",
-    status: "away",
-  },
-  {
-    id: "4",
-    name: "Alex Rodriguez",
-    email: "alex.r@company.com",
-    role: "Observer",
-    status: "active",
-  },
-];
-
-function getInitials(name: string): string {
+function getInitials(name: string | undefined): string {
+  if (!name) return "";
   return name
     .split(" ")
     .map((n) => n[0])
@@ -58,18 +23,21 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function MembersTable({ members = defaultMembers }: MembersTableProps) {
+export function MembersTable({ members, workspaceId }: MembersTableProps) {
   const [isDeactivateOpen, setIsDeactivateOpen] = React.useState(false);
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = React.useState(false);
-  const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<"Owner" | "Member" | "Observer">("Member");
+  const [selectedMember, setSelectedMember] = React.useState<MemberRequest | null>(null);
+  const [selectedRole, setSelectedRole] = React.useState<string>("Member");
 
-  const handleDeactivate = (member: Member) => {
+  const removeMemberMutation = useRemoveMember(workspaceId);
+  const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.id ?? ""));
+
+  const handleDeactivate = (member: MemberRequest) => {
     setSelectedMember(member);
     setIsDeactivateOpen(true);
   };
 
-  const handleRoleSwitch = (member: Member) => {
+  const handleRoleSwitch = (member: MemberRequest) => {
     setSelectedMember(member);
     setSelectedRole(member.role);
     setIsRoleSwitchOpen(true);
@@ -77,18 +45,27 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
 
   const confirmDeactivate = () => {
     if (selectedMember) {
-      console.log("Deactivating member:", selectedMember.name);
+      removeMemberMutation.mutate(String(selectedMember.id), {
+        onSuccess: () => {
+          setIsDeactivateOpen(false);
+          setSelectedMember(null);
+        },
+      });
     }
-    setIsDeactivateOpen(false);
-    setSelectedMember(null);
   };
 
   const confirmRoleSwitch = () => {
     if (selectedMember) {
-      console.log("Switching role for:", selectedMember.name, "to", selectedRole);
+      changeRoleMutation.mutate(
+        { role: selectedRole as WorkspaceRole },
+        {
+          onSuccess: () => {
+            setIsRoleSwitchOpen(false);
+            setSelectedMember(null);
+          },
+        }
+      );
     }
-    setIsRoleSwitchOpen(false);
-    setSelectedMember(null);
   };
 
   return (
@@ -111,7 +88,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
 
       {/* Rows */}
       <div className="divide-y divide-muted-700">
-        {members.map((member) => (
+        {(members && members.length > 0 ? members : []).map((member) => (
           <div
             key={member.id}
             className="grid grid-cols-4 gap-4 px-6 py-4 hover:bg-muted-800 transition-colors items-center"
@@ -124,11 +101,11 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                   "bg-gradient-to-br from-gray-500 to-gray-600"
                 )}
               >
-                {getInitials(member.name)}
+                {getInitials(member.name || member.email)}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  {member.name}
+                  {member.name || member.email.split('@')[0]}
                 </p>
                 <p className="text-xs text-muted-400 truncate">
                   {member.email}
@@ -254,7 +231,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                 </label>
                 <select
                   value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as "Owner" | "Member" | "Observer")}
+                  onChange={(e) => setSelectedRole(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500/50"
                 >
                   <option value="Owner">Owner</option>
