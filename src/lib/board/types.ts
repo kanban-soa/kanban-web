@@ -11,7 +11,9 @@ export type Board = {
   id: Id;
   workspaceId: Id;
   title: string;
+  description: string;
   listIds: Id[];
+  labels?: Label[];
   createdAt: string;
   updatedAt: string;
 };
@@ -20,19 +22,22 @@ export type List = {
   id: Id;
   boardId: Id;
   title: string;
-  taskIds: Id[];
+  cardIds: Id[];
   createdAt: string;
   updatedAt: string;
 };
 
-export type Task = {
+export type Label = { text: string; color: string };
+
+export type card = {
   id: Id;
   boardId: Id;
   listId: Id;
   title: string;
   description: string;
-  labels: string[];
+  labels: Label[];
   members: string[];
+  dueDate?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -41,6 +46,6 @@ export type BoardsManagementState = {
   workspaces: Record<Id, Workspace>;
   boards: Record<Id, Board>;
   lists: Record<Id, List>;
-  tasks: Record<Id, Task>;
+  cards: Record<Id, card>;
 };
 
