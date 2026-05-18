@@ -6,7 +6,7 @@ export function useLogin() {
   const router = useRouter();
   return useMutation({
     mutationFn: login,
-    onSuccess: () => router.push("/workspaces/default/boards"),
+    onSuccess: () => router.push("/workspaces"),
     onError: (error) => console.error("Login failed", error),
   });
 }
@@ -15,7 +15,7 @@ export function useRegister() {
   const router = useRouter();
   return useMutation({
     mutationFn: register,
-    onSuccess: () => router.push("/workspaces/default/boards"),
+    onSuccess: () => router.push("/workspaces"),
   });
 }
 
