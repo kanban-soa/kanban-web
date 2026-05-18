@@ -34,13 +34,15 @@ type BoardsManagementActions = {
   initBoard: (boardId: Id) => void;
   deleteBoard: (boardId: Id) => void;
   createList: (boardId: Id, title: string) => Id;
+  updateList: (listId: Id, patch: Partial<Pick<List, "title">>) => void;
   deleteList: (boardId: Id, listId: Id) => void;
   createcard: (boardId: Id, listId: Id, title: string, description?: string) => Id;
   deletecard: (cardId: Id) => void;
   updatecard: (
     cardId: Id,
-    patch: Partial<Pick<card, "title" | "description" | "listId" | "labels" | "members">>,
+    patch: Partial<Pick<card, "title" | "description" | "listId" | "labels" | "members" | "dueDate">>,
   ) => void;
+  createBoardLabel: (boardId: Id, label: { text: string; color: string }) => void;
 };
 
 type BoardsManagementSelectors = {
@@ -56,15 +58,19 @@ type BoardsManagementSelectors = {
 export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors & BoardsManagementActions {
   const [state, setState] = React.useState<BoardsManagementState>({ workspaces: {}, boards: {}, lists: {}, cards: {} });
   const [isLoading, setIsLoading] = React.useState(true);
+  const stateRef = React.useRef(state);
 
   React.useEffect(() => {
     setIsLoading(true);
-    setState(ensureWorkspaceInitialized(workspaceId));
+    const loaded = ensureWorkspaceInitialized(workspaceId);
+    stateRef.current = loaded;
+    setState(loaded);
     setIsLoading(false);
   }, [workspaceId]);
 
   const persist = React.useCallback(
     (next: BoardsManagementState) => {
+      stateRef.current = next;
       setState(next);
       saveWorkspaceState(workspaceId, next);
     },
@@ -102,7 +108,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
 
   const createBoard = React.useCallback(
     (title: string) => {
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       if (!next.workspaces[workspaceId]) next.workspaces[workspaceId] = seedWorkspace(workspaceId).workspaces[workspaceId];
       const id = makeId("board");
       seedBoard(next, workspaceId, id, title.trim() || "Untitled board");
@@ -117,7 +123,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       const board = state.boards[boardId];
       if (!board) return;
 
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       const t = nowIso();
 
       if (patch.title) {
@@ -137,7 +143,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       const board = state.boards[boardId];
       if (!board) return;
       if (board.listIds.length > 0) return;
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       seedDefaultLists(next, boardId);
       next.boards[boardId].updatedAt = nowIso();
       persist(next);
@@ -150,7 +156,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       const board = state.boards[boardId];
       if (!board) return;
 
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
 
       for (const listId of board.listIds) {
         const list = next.lists[listId];
@@ -177,7 +183,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     (boardId: Id, title: string) => {
       const board = state.boards[boardId];
       if (!board) return "";
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       const id = makeId("list");
       const t = nowIso();
       next.lists[id] = { id, boardId, title: title.trim() || "Untitled list", cardIds: [], createdAt: t, updatedAt: t };
@@ -189,13 +195,33 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     [persist, state],
   );
 
+  const updateList = React.useCallback(
+    (listId: Id, patch: Partial<Pick<List, "title">>) => {
+      const list = state.lists[listId];
+      if (!list) return;
+
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
+      const t = nowIso();
+
+      if (patch.title) {
+        next.lists[listId].title = patch.title;
+      }
+      next.lists[listId].updatedAt = t;
+      if (next.boards[list.boardId]) {
+        next.boards[list.boardId].updatedAt = t;
+      }
+      persist(next);
+    },
+    [persist, state],
+  );
+
   const deleteList = React.useCallback(
     (boardId: Id, listId: Id) => {
       const board = state.boards[boardId];
       const list = state.lists[listId];
       if (!board || !list) return;
 
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       const t = nowIso();
 
       for (const cardId of list.cardIds) {
@@ -214,7 +240,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     (boardId: Id, listId: Id, title: string, description = "") => {
       const list = state.lists[listId];
       if (!list) return "";
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       const id = makeId("card");
       const t = nowIso();
       next.cards[id] = {
@@ -240,11 +266,11 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
   const updatecard = React.useCallback(
     (
       cardId: Id,
-      patch: Partial<Pick<card, "title" | "description" | "listId" | "labels" | "members">>,
+      patch: Partial<Pick<card, "title" | "description" | "listId" | "labels" | "members" | "dueDate">>,
     ) => {
       const card = state.cards[cardId];
       if (!card) return;
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       const t = nowIso();
 
       if (patch.listId && patch.listId !== card.listId) {
@@ -263,6 +289,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       if (typeof patch.description === "string") next.cards[cardId].description = patch.description;
       if (Array.isArray(patch.labels)) next.cards[cardId].labels = patch.labels;
       if (Array.isArray(patch.members)) next.cards[cardId].members = patch.members;
+      if (patch.dueDate !== undefined) next.cards[cardId].dueDate = patch.dueDate;
 
       next.cards[cardId].updatedAt = t;
       persist(next);
@@ -275,7 +302,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       const card = state.cards[cardId];
       if (!card) return;
 
-      const next = structuredClone(state) as BoardsManagementState;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
       const t = nowIso();
 
       const list = next.lists[card.listId];
@@ -294,6 +321,23 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     [persist, state],
   );
 
+  const createBoardLabel = React.useCallback(
+    (boardId: Id, label: { text: string; color: string }) => {
+      const board = state.boards[boardId];
+      if (!board) return;
+      const next = structuredClone(stateRef.current) as BoardsManagementState;
+      if (!next.boards[boardId].labels) {
+        next.boards[boardId].labels = [];
+      }
+      if (!next.boards[boardId].labels!.some((l) => l.text === label.text)) {
+        next.boards[boardId].labels!.push(label);
+        next.boards[boardId].updatedAt = nowIso();
+        persist(next);
+      }
+    },
+    [persist, state]
+  );
+
   return {
     workspace,
     boards,
@@ -307,10 +351,12 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     initBoard,
     deleteBoard,
     createList,
+    updateList,
     deleteList,
     createcard,
     deletecard,
     updatecard,
+    createBoardLabel,
   };
 }
 

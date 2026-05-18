@@ -39,6 +39,7 @@ export function BoardView({
     isLoading,
     initBoard,
     createList,
+    updateList,
     createcard,
     deleteList,
     updateBoard,
@@ -248,6 +249,7 @@ export function BoardView({
                 title={list.title}
                 cards={getcardsForList(list.id)}
                 onAddcard={(t, d) => createcard(boardId, list.id, t, d)}
+                onUpdateList={(newTitle) => updateList(list.id, { title: newTitle })}
                 onDeleteList={() => deleteList(boardId, list.id)}
               />
             ))
@@ -303,14 +305,16 @@ function ListColumn({
   title,
   cards,
   onAddcard,
+  onUpdateList,
   onDeleteList,
 }: {
   workspaceId: Id;
   boardId: Id;
   listId: Id;
   title: string;
-  cards: { id: Id; title: string; description: string; labels?: string[] }[];
+  cards: { id: Id; title: string; description: string; labels?: { text: string; color: string }[] }[];
   onAddcard: (title: string, description: string) => void;
+  onUpdateList: (title: string) => void;
   onDeleteList: () => void;
 }) {
   const [cardTitle, setcardTitle] = React.useState("");
@@ -318,13 +322,50 @@ function ListColumn({
   const [iscardOpen, setIscardOpen] = React.useState(false);
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+  const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState(title);
+
+  const handleTitleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editTitle.trim() && editTitle !== title) {
+      onUpdateList(editTitle);
+    } else {
+      setEditTitle(title);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setEditTitle(title);
+      setIsEditingTitle(false);
+    }
+  };
 
   return (
     <div className="w-[320px] shrink-0 rounded-xl border bg-muted/10">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">{title}</div>
-          <div className="text-xs text-muted-foreground">{cards.length} cards</div>
+        <div className="min-w-0 flex-1">
+          {isEditingTitle ? (
+            <form onSubmit={handleTitleSubmit}>
+              <Input
+                autoFocus
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={handleTitleSubmit}
+                onKeyDown={handleKeyDown}
+                className="h-7 w-full px-2 py-1 text-sm font-semibold"
+              />
+            </form>
+          ) : (
+            <div
+              className="truncate text-sm font-semibold cursor-pointer rounded px-1 -ml-1 hover:bg-muted/50"
+              onClick={() => setIsEditingTitle(true)}
+            >
+              {title}
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground ml-1 mt-0.5">{cards.length} cards</div>
         </div>
         <div className="relative flex items-center gap-1">
           <Button
@@ -337,36 +378,39 @@ function ListColumn({
             <Plus />
             <span className="sr-only">New card</span>
           </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            type="button"
-            className="rounded-full bg-muted/60 text-muted-foreground hover:bg-muted cursor-pointer"
-            onClick={() => setIsMenuOpen((open) => !open)}
-            aria-expanded={isMenuOpen}
-            aria-haspopup="menu"
-          >
-            <MoreHorizontal />
-            <span className="sr-only">List actions</span>
-          </Button>
-          {isMenuOpen ? (
-            <div
-              role="menu"
-              className="absolute right-0 top-full z-10 mt-2 w-36 rounded-lg border bg-background p-1 shadow-md"
-            >
-              <button
+          <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
                 type="button"
-                role="menuitem"
-                className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted cursor-pointer"
+                className="rounded-full bg-muted/60 text-muted-foreground hover:bg-muted cursor-pointer"
+              >
+                <MoreHorizontal />
+                <span className="sr-only">List actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsEditingTitle(true);
+                }}
+                className="cursor-pointer"
+              >
+                Rename list
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={() => {
                   setIsMenuOpen(false);
                   setIsDeleteOpen(true);
                 }}
+                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
               >
                 Delete list
-              </button>
-            </div>
-          ) : null}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -380,12 +424,13 @@ function ListColumn({
             <div className="font-medium leading-5">{t.title}</div>
             {t.labels && t.labels.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-1">
-                {t.labels.slice(0, 3).map((label) => (
+                {t.labels.slice(0, 3).map((label, idx) => (
                   <span
-                    key={label}
-                    className="rounded-full border bg-muted/40 px-2 py-0.5 text-[11px]"
+                    key={idx}
+                    className="rounded-full px-2 py-0.5 text-[11px] text-white"
+                    style={{ backgroundColor: label.color }}
                   >
-                    {label}
+                    {label.text}
                   </span>
                 ))}
                 {t.labels.length > 3 ? (

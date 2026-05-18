@@ -13,6 +13,7 @@ export type Board = {
   title: string;
   description: string;
   listIds: Id[];
+  labels?: Label[];
   createdAt: string;
   updatedAt: string;
 };
@@ -26,14 +27,17 @@ export type List = {
   updatedAt: string;
 };
 
+export type Label = { text: string; color: string };
+
 export type card = {
   id: Id;
   boardId: Id;
   listId: Id;
   title: string;
   description: string;
-  labels: string[];
+  labels: Label[];
   members: string[];
+  dueDate?: string;
   createdAt: string;
   updatedAt: string;
 };
