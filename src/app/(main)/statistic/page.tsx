@@ -57,7 +57,7 @@ const activities = [
   },
   {
     user: "Elena Rodriguez",
-    action: "assigned 4 tasks to",
+    action: "assigned 4 cards to",
     target: "Design Team",
     time: "3 hours ago",
     team: "Product",
@@ -186,7 +186,7 @@ export default function StatisticPage() {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-2xl font-black">100%</span>
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Total Tasks</span>
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">Total cards</span>
                   </div>
                 </div>
                 <div className="mt-8 grid w-full gap-3">

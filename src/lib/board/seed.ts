@@ -21,6 +21,7 @@ export function seedBoard(state: BoardsManagementState, workspaceId: Id, boardId
     id: boardId,
     workspaceId,
     title,
+    description: "",
     listIds: [],
     createdAt: t,
     updatedAt: t,
@@ -40,7 +41,7 @@ export function seedDefaultLists(state: BoardsManagementState, boardId: Id) {
       id: item.id,
       boardId,
       title: item.title,
-      taskIds: [],
+      cardIds: [],
       createdAt: t,
       updatedAt: t,
     };

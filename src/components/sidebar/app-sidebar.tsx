@@ -13,6 +13,8 @@ import {
   Plus,
   ChartColumnIncreasing,
   Zap,
+  MoonStar,
+  SunMedium,
 } from "lucide-react";
 
 import {
@@ -28,7 +30,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ThemeProvider, useTheme } from "@/components/theme/theme-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +54,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const navItems = [
   { title: "Workspaces", icon: Zap, href: "/workspaces" },
@@ -75,6 +78,26 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   children?: React.ReactNode;
 };
 
+function UserMenuThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <DropdownMenuItem
+      onClick={(e) => {
+        e.preventDefault();
+        toggleTheme();
+      }}
+      className="cursor-pointer"
+    >
+      {theme === "dark" ? (
+        <SunMedium className="size-4 mr-2" />
+      ) : (
+        <MoonStar className="size-4 mr-2" />
+      )}
+      Toggle Theme
+    </DropdownMenuItem>
+  );
+}
+
 export function AppSidebar({ children, ...props }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -90,13 +113,53 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
   });
   const [isCreating, setIsCreating] = React.useState(false);
 
+  const [user, setUser] = React.useState<{name?: string, email?: string} | null>(null);
+
+  React.useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+      }
+    }
+  }, []);
+
+  const userInitials = React.useMemo(() => {
+    if (!user?.name) return "U";
+    const parts = user.name.split(" ").filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return user.name.substring(0, 1).toUpperCase();
+  }, [user?.name]);
+
   const isAuthRoute = pathname === "/" || pathname === "/login";
   if (isAuthRoute) {
     return <>{children}</>;
   }
 
-  const handleLogout = () => {
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      // In a real app, you might want to read the token from cookies or local storage 
+      // if your logout API requires an Authorization header.
+      // Assuming cookies are sent automatically or it's a simple POST to invalidate session.
+      const response = await fetch("http://localhost:8080/api/v1/auth/logout", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        toast.success("Logged out successfully");
+      } else {
+        toast.error("Logout might have failed on server, proceeding anyway");
+      }
+    } catch (error) {
+      console.error("Logout API error:", error);
+      toast.error("Network error during logout");
+    } finally {
+      router.push("/login");
+    }
   };
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -269,13 +332,13 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                       }`}
                     >
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-muted text-foreground/80 font-semibold text-xs">
-                        VT
+                        {userInitials}
                       </div>
                       {!isCollapsed && (
                         <>
                           <div className="grid flex-1 text-left text-sm leading-tight">
                             <span className="truncate font-semibold text-sidebar-foreground">
-                              Vy Trương
+                              {user?.name || "User"}
                             </span>
                           </div>
                           <MoreHorizontal className="ml-auto size-4 text-sidebar-foreground/70" />
@@ -289,6 +352,8 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                     className="w-56"
                   >
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <UserMenuThemeToggle />
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleLogout}

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login, register } from "@/lib/api/auth.api";
+import { ThemeToggle } from "@/components/theme/theme-provider";
 
 type Mode = "login" | "register";
 
@@ -49,6 +50,9 @@ export default function LoginForm() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-background">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#00000014_1px,transparent_1px)] [background-size:18px_18px]" />
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
         <span className="text-xs font-semibold tracking-[0.32em] text-muted-foreground">
@@ -110,10 +114,10 @@ export default function LoginForm() {
                 type="email"
                 placeholder="Enter your email address"
                 autoComplete="email"
+                required
                 className="h-10"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
               />
             </div>
             <div className="space-y-2">

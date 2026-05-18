@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Globe, Type } from "lucide-react";
 
 const tabs = ["Account", "Workspace"];
@@ -24,6 +24,19 @@ const fontSizes = ["small", "medium", "large"];
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>("Account");
   const { fontSize, setFontSize } = useTheme();
+  const [user, setUser] = useState<{name?: string, email?: string} | null>(null);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+      }
+    }
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -119,16 +132,16 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <p className="text-lg font-semibold leading-tight">Chiko</p>
+                  <p className="text-lg font-semibold leading-tight">{user?.name || "Loading..."}</p>
                   <p className="text-sm text-muted-foreground">
-                    haycuoinhieuhon1412@gmail.com
+                    {user?.email || "Loading..."}
                   </p>
                 </div>
               </div>
 
               <Field>
                 <FieldLabel htmlFor="display-name">Display name</FieldLabel>
-                <Input id="display-name" defaultValue="Chiko" />
+                <Input id="display-name" defaultValue={user?.name || ""} key={user?.name || "default"} />
                 <FieldDescription>
                   Pick a name to be shown to other workspace members.
                 </FieldDescription>
@@ -138,7 +151,7 @@ export default function SettingsPage() {
                 <FieldLabel className="font-semibold">Email</FieldLabel>
                 <div className="flex items-center justify-between rounded-lg border border-input/60 bg-muted/20 px-3 py-2 text-sm text-foreground">
                   <span className="text-muted-foreground">
-                    haycuoinhieuhon1412@gmail.com
+                    {user?.email || "Loading..."}
                   </span>
                   <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
                     Verified
@@ -229,7 +242,7 @@ export default function SettingsPage() {
         <header className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-            <ThemeToggle className="h-9 w-9" />
+            {/*<ThemeToggle className="h-9 w-9" />*/}
           </div>
           <nav className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             {tabs.map((tab) => (
