@@ -112,6 +112,28 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
   });
   const [isCreating, setIsCreating] = React.useState(false);
 
+  const [user, setUser] = React.useState<{name?: string, email?: string} | null>(null);
+
+  React.useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+      }
+    }
+  }, []);
+
+  const userInitials = React.useMemo(() => {
+    if (!user?.name) return "U";
+    const parts = user.name.split(" ").filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return user.name.substring(0, 1).toUpperCase();
+  }, [user?.name]);
+
   const isAuthRoute = pathname === "/" || pathname === "/login";
   if (isAuthRoute) {
     return <>{children}</>;
@@ -309,13 +331,13 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                       }`}
                     >
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-muted text-foreground/80 font-semibold text-xs">
-                        VT
+                        {userInitials}
                       </div>
                       {!isCollapsed && (
                         <>
                           <div className="grid flex-1 text-left text-sm leading-tight">
                             <span className="truncate font-semibold text-sidebar-foreground">
-                              Vy Trương
+                              {user?.name || "User"}
                             </span>
                           </div>
                           <MoreHorizontal className="ml-auto size-4 text-sidebar-foreground/70" />
