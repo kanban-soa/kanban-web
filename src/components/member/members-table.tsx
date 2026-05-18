@@ -121,7 +121,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
               <div
                 className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-semibold text-sm text-white",
-                  "bg-gradient-to-br from-blue-500 to-blue-600"
+                  "bg-gradient-to-br from-gray-500 to-gray-600"
                 )}
               >
                 {getInitials(member.name)}
@@ -241,7 +241,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-muted-700 border-muted-700 p-5 shadow-lg"
+            className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
           >
             <div className="text-base font-semibold text-white">Change Role</div>
             <div className="mt-1 text-xs text-muted-400">
@@ -255,7 +255,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                 <select
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value as "Owner" | "Member" | "Observer")}
-                  className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                  className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500/50"
                 >
                   <option value="Owner">Owner</option>
                   <option value="Member">Member</option>
@@ -274,7 +274,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                 <Button
                   type="button"
                   onClick={confirmRoleSwitch}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-gray-600 hover:bg-gray-700 text-white"
                 >
                   Update Role
                 </Button>

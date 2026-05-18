@@ -142,7 +142,7 @@ export default function MemberPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-muted-700 border-muted-700 p-5 shadow-lg"
+            className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
           >
             <div className="text-base font-semibold text-white">Switch Workspace</div>
             <div className="mt-1 text-xs text-muted-400">
@@ -155,15 +155,15 @@ export default function MemberPage() {
                   onClick={() => handleConfirmWorkspaceSwitch(ws.id)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
                     currentWorkspaceId === ws.id
-                      ? "bg-blue-900 border-blue-700 text-white"
-                      : "bg-muted-800 border-muted-700 text-muted-300 hover:bg-muted-700 hover:border-muted-600"
+                      ? "bg-gray-900 border-gray-700 text-white"
+                      : "bg-muted-800 border-muted-700 text-muted-300 hover:bg-muted-700 hover:border-gray-600"
                   }`}
                 >
                   <div className="text-left">
                     <p className="font-medium">{ws.name}</p>
                   </div>
                   {currentWorkspaceId === ws.id && (
-                    <span className="text-blue-400 text-sm font-semibold">Active</span>
+                    <span className="text-gray-400 text-sm font-semibold">Active</span>
                   )}
                 </button>
               ))}
@@ -173,7 +173,7 @@ export default function MemberPage() {
                 variant="outline"
                 type="button"
                 onClick={() => setIsWorkspaceSwitchOpen(false)}
-                className="bg-muted-800 border-muted-700 text-white hover:bg-muted-700"
+                className="bg-muted-600 border-muted-700 text-white hover:bg-gray-700"
               >
                 Close
               </Button>

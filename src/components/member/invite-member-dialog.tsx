@@ -64,7 +64,7 @@ export function InviteMemberDialog({
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="user@company.com"
-              className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white placeholder-muted-500 text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white placeholder-muted-500 text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500"
             />
           </div>
 
@@ -86,7 +86,7 @@ export function InviteMemberDialog({
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
-              className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500"
             >
               <option value="Owner">Owner</option>
               <option value="Member">Member</option>
@@ -108,7 +108,7 @@ export function InviteMemberDialog({
               type="button"
               onClick={handleSendInvite}
               disabled={!inviteEmail.trim() || inviteMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-muted-700 disabled:text-muted-400"
+              className="bg-gray-600 hover:bg-gray-700 text-white disabled:bg-muted-700 disabled:text-muted-400"
             >
               {inviteMutation.isPending ? "Sending..." : "Send Invite"}
             </Button>
