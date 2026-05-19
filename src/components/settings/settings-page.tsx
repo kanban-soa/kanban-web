@@ -14,17 +14,18 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
-import { Globe, Type } from "lucide-react";
+import { Type } from "lucide-react";
 
-const tabs = ["Account", "Workspace"];
+const tabs = ["Account" /*, "Workspace"*/];
 
-const languages = ["English", "Vietnamese", "Japanese"];
 const fontSizes = ["small", "medium", "large"];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>("Account");
   const { fontSize, setFontSize } = useTheme();
-  const [user, setUser] = useState<{name?: string, email?: string} | null>(null);
+  const [user, setUser] = useState<{ name?: string; email?: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -40,6 +41,7 @@ export default function SettingsPage() {
 
   const renderContent = () => {
     switch (activeTab) {
+      /*
       case "Workspace":
         return (
           <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 shadow-lg backdrop-blur">
@@ -118,6 +120,7 @@ export default function SettingsPage() {
             </div>
           </section>
         );
+      */
       case "Account":
       default:
         return (
@@ -132,7 +135,9 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <p className="text-lg font-semibold leading-tight">{user?.name || "Loading..."}</p>
+                  <p className="text-lg font-semibold leading-tight">
+                    {user?.name || "Loading..."}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {user?.email || "Loading..."}
                   </p>
@@ -141,7 +146,11 @@ export default function SettingsPage() {
 
               <Field>
                 <FieldLabel htmlFor="display-name">Display name</FieldLabel>
-                <Input id="display-name" defaultValue={user?.name || ""} key={user?.name || "default"} />
+                <Input
+                  id="display-name"
+                  defaultValue={user?.name || ""}
+                  key={user?.name || "default"}
+                />
                 <FieldDescription>
                   Pick a name to be shown to other workspace members.
                 </FieldDescription>
@@ -153,83 +162,53 @@ export default function SettingsPage() {
                   <span className="text-muted-foreground">
                     {user?.email || "Loading..."}
                   </span>
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                  {/*<span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
                     Verified
-                  </span>
+                  </span>*/}
                 </div>
                 <FieldDescription>
                   Your login email can’t be changed.
                 </FieldDescription>
               </Field>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <Field>
-                  <FieldLabel className="font-semibold" htmlFor="language">
-                    Language
-                  </FieldLabel>
-                  <div className="relative">
-                    <Select defaultValue="english">
-                      <SelectTrigger id="language" className="w-full pl-9">
-                        <SelectValue placeholder="Choose language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages.map((language) => (
-                          <SelectItem
-                            key={language}
-                            value={language.toLowerCase()}
-                            className="capitalize"
-                          >
-                            {language}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
-                  <FieldDescription>
-                    Choose your preferred language.
-                  </FieldDescription>
-                </Field>
-
-                <Field>
-                  <FieldLabel className="font-semibold" htmlFor="font-size">
-                    Font size
-                  </FieldLabel>
-                  <div className="relative">
-                    <Select
-                      value={fontSize}
-                      onValueChange={(value) =>
-                        setFontSize(value as "small" | "medium" | "large")
-                      }
+              <Field>
+                <FieldLabel className="font-semibold" htmlFor="font-size">
+                  Font size
+                </FieldLabel>
+                <div className="relative">
+                  <Select
+                    value={fontSize}
+                    onValueChange={(value) =>
+                      setFontSize(value as "small" | "medium" | "large")
+                    }
+                  >
+                    <SelectTrigger
+                      id="font-size"
+                      className="w-full pl-9 capitalize"
                     >
-                      <SelectTrigger
-                        id="font-size"
-                        className="w-full pl-9 capitalize"
-                      >
-                        <SelectValue
-                          placeholder="Choose size"
+                      <SelectValue
+                        placeholder="Choose size"
+                        className="capitalize"
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fontSizes.map((font) => (
+                        <SelectItem
+                          key={font}
+                          value={font}
                           className="capitalize"
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {fontSizes.map((font) => (
-                          <SelectItem
-                            key={font}
-                            value={font}
-                            className="capitalize"
-                          >
-                            {font}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Type className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
-                  <FieldDescription>
-                    Tune the interface to your comfort.
-                  </FieldDescription>
-                </Field>
-              </div>
+                        >
+                          {font}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Type className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
+                <FieldDescription>
+                  Tune the interface to your comfort.
+                </FieldDescription>
+              </Field>
             </div>
           </section>
         );

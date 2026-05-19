@@ -40,7 +40,8 @@ export default function LoginForm() {
     } catch (err: unknown) {
       const message =
         err && typeof err === "object" && "response" in err
-          ? ((err as { response: { data?: { message?: string } } }).response?.data?.message ?? "Something went wrong")
+          ? ((err as { response: { data?: { message?: string } } }).response
+              ?.data?.message ?? "Something went wrong")
           : "Something went wrong";
       setError(message);
     } finally {
@@ -68,27 +69,6 @@ export default function LoginForm() {
         </p>
 
         <div className="mt-8 w-full max-w-sm rounded-2xl border border-border/60 bg-card/80 p-6 text-left shadow-sm backdrop-blur">
-          <Button className="h-10 w-full gap-2 bg-foreground text-background hover:bg-foreground/90">
-            <svg
-              aria-hidden="true"
-              className="size-4"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M21.6 12.227c0-.818-.073-1.605-.21-2.363H12v4.47h5.386a4.6 4.6 0 0 1-1.996 3.018v2.504h3.23c1.89-1.742 2.98-4.31 2.98-7.629Z" />
-              <path d="M12 22c2.7 0 4.963-.895 6.617-2.43l-3.23-2.505c-.9.603-2.05.96-3.387.96-2.604 0-4.807-1.759-5.596-4.122H3.07v2.59A10 10 0 0 0 12 22Z" />
-              <path d="M6.404 13.903a6.004 6.004 0 0 1 0-3.806v-2.59H3.07a10.002 10.002 0 0 0 0 8.986l3.334-2.59Z" />
-              <path d="M12 6.975c1.47 0 2.789.505 3.827 1.496l2.87-2.87C16.958 3.99 14.699 3 12 3a10 10 0 0 0-8.93 5.507l3.334 2.59C7.193 8.734 9.396 6.975 12 6.975Z" />
-            </svg>
-            Continue with Google
-          </Button>
-
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            or
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "register" && (
               <div className="space-y-2">
@@ -127,7 +107,9 @@ export default function LoginForm() {
                 name="password"
                 type="password"
                 placeholder="Enter your password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                autoComplete={
+                  mode === "login" ? "current-password" : "new-password"
+                }
                 className="h-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -135,15 +117,25 @@ export default function LoginForm() {
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" disabled={loading} className="h-10 w-full">
-              {loading ? "Please wait..." : mode === "login" ? "Sign in" : "Sign up"}
+              {loading
+                ? "Please wait..."
+                : mode === "login"
+                  ? "Sign in"
+                  : "Sign up"}
             </Button>
 
-            <Button type="button" variant="outline" className="h-10 w-full" onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 w-full"
+              onClick={() => {
+                setMode(mode === "login" ? "register" : "login");
+                setError("");
+              }}
+            >
               {mode === "login" ? "Create an account" : "Back to sign in"}
             </Button>
 
@@ -156,7 +148,14 @@ export default function LoginForm() {
         {mode === "login" && (
           <p className="mt-6 text-xs text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <button type="button" onClick={() => { setMode("register"); setError(""); }} className="font-medium text-foreground underline-offset-4 hover:underline">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("register");
+                setError("");
+              }}
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
               Sign up
             </button>
           </p>
