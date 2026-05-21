@@ -9,11 +9,16 @@ import type { MemberRequest, WorkspaceRole } from "@/lib/api/types";
 import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import RoleSwitchModal from "@/components/member/role-switch-modal";
+import RemoveMemberModal from "@/components/member/remove-member-modal";
+
 
 interface MembersTableProps {
   members?: MemberRequest[];
   workspaceId: string;
 }
+
+const workspaceRoles: WorkspaceRole[] = ["owner", "member", "observer"];
 
 function getInitials(name: string | undefined): string {
   if (!name) return "";
@@ -28,10 +33,10 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
   const [isDeactivateOpen, setIsDeactivateOpen] = React.useState(false);
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = React.useState(false);
   const [selectedMember, setSelectedMember] = React.useState<MemberRequest | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<string>("Member");
+  const [selectedRole, setSelectedRole] = React.useState<WorkspaceRole>("member");
 
   const removeMemberMutation = useRemoveMember(workspaceId);
-  const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.id ?? ""));
+  const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.userId ?? ""));
 
   const handleDeactivate = (member: MemberRequest) => {
     setSelectedMember(member);
@@ -40,7 +45,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
 
   const handleRoleSwitch = (member: MemberRequest) => {
     setSelectedMember(member);
-    setSelectedRole(member.role);
+    setSelectedRole(member.role as WorkspaceRole);
     setIsRoleSwitchOpen(true);
   };
 
@@ -226,95 +231,22 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
         ))}
       </div>
 
-      {/* Deactivate Confirmation Modal */}
-      {isDeactivateOpen && selectedMember ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIsDeactivateOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold text-white">Remove Member</div>
-            <div className="mt-1 text-xs text-muted-400">
-              Are you sure you want to remove {selectedMember.name} from this workspace?
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setIsDeactivateOpen(false)}
-                className="bg-muted-800 border-muted-700 text-white hover:bg-muted-700"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={confirmDeactivate}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Remove Member
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <RemoveMemberModal
+        open={isDeactivateOpen}
+        member={selectedMember}
+        onClose={() => setIsDeactivateOpen(false)}
+        onConfirm={confirmDeactivate}
+      />
 
-      {/* Role Switch Modal */}
-      {isRoleSwitchOpen && selectedMember ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIsRoleSwitchOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold text-white">Change Role</div>
-            <div className="mt-1 text-xs text-muted-400">
-              Update role for {selectedMember.name}
-            </div>
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-muted-300 mb-2">
-                  Select New Role
-                </label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500/50"
-                >
-                  <option value="Owner">Owner</option>
-                  <option value="Member">Member</option>
-                  <option value="Observer">Observer</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setIsRoleSwitchOpen(false)}
-                  className="bg-muted-800 border-muted-700 text-white hover:bg-muted-700"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={confirmRoleSwitch}
-                  className="bg-gray-600 hover:bg-gray-700 text-white"
-                >
-                  Update Role
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <RoleSwitchModal
+        open={isRoleSwitchOpen}
+        member={selectedMember}
+        roles={workspaceRoles}
+        selectedRole={selectedRole}
+        onChangeRole={(r) => setSelectedRole(r)}
+        onClose={() => setIsRoleSwitchOpen(false)}
+        onConfirm={confirmRoleSwitch}
+      />
     </div>
   );
 }

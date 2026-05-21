@@ -19,7 +19,7 @@ export const WORKSPACES = {
   INVITE: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/members`,
   CHANGE_ROLE: (workspaceId: string, memberId: string) => `/api/v1/workspaces/${workspaceId}/members/${memberId}`,
   REMOVE_MEMBER: (workspaceId: string, memberId: string) => `/api/v1/workspaces/${workspaceId}/members/${memberId}`,
-  INVITATIONS: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/members/invitations`,
+  INVITATIONS: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/members/invitation`,
   REMOVE_INVITATION: (workspaceId: string, invitationId: string) => `/api/v1/workspaces/${workspaceId}/members/invitation/${invitationId}`,
 } as const;
 

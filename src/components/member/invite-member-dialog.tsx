@@ -20,20 +20,18 @@ export function InviteMemberDialog({
   onOpenChange,
 }: InviteMemberDialogProps) {
   const [inviteEmail, setInviteEmail] = React.useState("");
-  const [inviteRole, setInviteRole] = React.useState<WorkspaceRole>("Member");
   const inviteMutation = useInviteMember(workspaceId);
 
   const handleSendInvite = () => {
     if (!inviteEmail.trim()) return;
     inviteMutation.mutate(
-      { email: inviteEmail.trim(), role: inviteRole },
+      { email: inviteEmail.trim() },
       {
         onSuccess: () => {
           toast.success("Invitation sent successfully", {
             description: `Invitation sent to ${inviteEmail}`,
           });
           setInviteEmail("");
-          setInviteRole("Member");
           onOpenChange(false);
         },
         onError: (error: any) => {
@@ -104,22 +102,6 @@ export function InviteMemberDialog({
             <div className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm font-medium">
               {workspaceName}
             </div>
-          </div>
-
-          {/* Role Selection */}
-          <div>
-            <label className="block text-sm font-medium text-muted-300 mb-2">
-              Role
-            </label>
-            <select
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
-              className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500"
-            >
-              <option value="Owner">Owner</option>
-              <option value="Member">Member</option>
-              <option value="Observer">Observer</option>
-            </select>
           </div>
 
           {/* Actions */}

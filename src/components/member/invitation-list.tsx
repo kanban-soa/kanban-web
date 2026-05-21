@@ -91,9 +91,9 @@ export function InvitationList({
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <Badge
                     variant={
-                      invitation.role === "Owner"
+                      invitation.role === "owner"
                         ? "default"
-                        : invitation.role === "Member"
+                        : invitation.role === "member"
                           ? "secondary"
                           : "outline"
                     }

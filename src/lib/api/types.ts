@@ -2,7 +2,9 @@
  * Shared API types used across API modules and hooks.
  */
 
-export type WorkspaceRole = "Owner" | "Member" | "Observer";
+export type WorkspaceRole = "admin" | "member" | "owner" | "observer" ;
+
+export type MemberStatus = "active" | "invited" | "removed" | "cancelled";
 
 export type Workspace = {
   id: string;
@@ -44,7 +46,6 @@ export type Invitation = {
 
 export type InviteMemberRequest = {
   email: string;
-  role: WorkspaceRole;
 };
 
 export type ChangeRoleRequest = {
