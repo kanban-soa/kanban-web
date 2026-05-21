@@ -26,7 +26,7 @@ export function WorkspaceCard({ id, name, members = 0, onClick, onInvite }: Work
       }}
       className="group relative flex h-[120px] w-full items-center justify-center rounded-lg border border-dashed border-light-400 shadow-sm cursor-pointer transition hover:bg-muted/40"
     >
-      <div className="flex size-12 items-center justify-center rounded-lg bg-muted text-lg font-bold">
+      <div className="flex ml-4 size-12 items-center justify-center rounded-lg bg-muted text-lg font-bold">
         {name.charAt(0).toUpperCase()}
       </div>
       <div className="ml-4 text-left flex-1 min-w-0">
