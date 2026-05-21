@@ -40,7 +40,7 @@ export async function changeRole(
   memberId: string,
   payload: ChangeRoleRequest,
 ): Promise<ChangeRoleRequest> {
-  const { data } = await api.post<Invitation>(WORKSPACES.CHANGE_ROLE(workspaceId, memberId), payload);
+  const { data } = await api.patch<Invitation>(WORKSPACES.CHANGE_ROLE(workspaceId, memberId), payload);
   return data;
 }
 

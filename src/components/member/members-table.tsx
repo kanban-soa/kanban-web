@@ -77,11 +77,6 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
             });
           }
           
-          console.error("Remove member error:", {
-            status,
-            message,
-            error,
-          });
         },
       });
     }
@@ -116,12 +111,6 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
                 description: message,
               });
             }
-            
-            console.error("Change role error:", {
-              status,
-              message,
-              error,
-            });
           },
         }
       );
