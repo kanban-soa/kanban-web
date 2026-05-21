@@ -15,6 +15,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
 import { Type } from "lucide-react";
+import { useGetUser } from "@/hooks/use-auth";
 
 const tabs = ["Account" /*, "Workspace"*/];
 
@@ -23,104 +24,28 @@ const fontSizes = ["small", "medium", "large"];
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>("Account");
   const { fontSize, setFontSize } = useTheme();
-  const [user, setUser] = useState<{ name?: string; email?: string } | null>(
-    null,
-  );
+  const [localUser, setLocalUser] = useState<{ id: string; name?: string; email?: string } | null>(null);
 
   useEffect(() => {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setUser(JSON.parse(userStr));
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
+    if (typeof window !== "undefined") {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          setLocalUser(JSON.parse(userStr));
+        } catch (e) {
+          console.error("Failed to parse user from localStorage", e);
+        }
       }
     }
   }, []);
 
+  const { data: user, isLoading: isLoadingUser } = useGetUser(localUser?.id);
+
+  // Merge local and fetched data
+  const currentUser = user || localUser;
+
   const renderContent = () => {
     switch (activeTab) {
-      /*
-      case "Workspace":
-        return (
-          <section className="overflow-hidden rounded-2xl border border-border/60 bg-card/60 shadow-lg backdrop-blur">
-            <div className="space-y-8 px-8 py-8">
-              <Field>
-                <FieldLabel htmlFor="workspace-name">Workspace name</FieldLabel>
-                <Input id="workspace-name" placeholder="Enter workspace name" />
-                <FieldDescription>
-                  Shown across your workspace.
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="workspace-url">Workspace URL</FieldLabel>
-                <div className="grid gap-3 md:grid-cols-[1fr_2fr]">
-                  <Input id="workspace-url-prefix" defaultValue="kan.bn/" />
-                  <Input id="workspace-url" placeholder="your-workspace" />
-                </div>
-                <FieldDescription>
-                  Use only letters, numbers, and dashes.
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="workspace-description">
-                  Workspace description
-                </FieldLabel>
-                <Input
-                  id="workspace-description"
-                  placeholder="Add a short description"
-                />
-                <FieldDescription>
-                  Optional, helps members recognize the space.
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="week-start">Week start day</FieldLabel>
-                <Select defaultValue="monday">
-                  <SelectTrigger id="week-start" className="w-full">
-                    <SelectValue placeholder="Select a day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sunday">Sunday</SelectItem>
-                    <SelectItem value="monday">Monday</SelectItem>
-                    <SelectItem value="tuesday">Tuesday</SelectItem>
-                    <SelectItem value="wednesday">Wednesday</SelectItem>
-                    <SelectItem value="thursday">Thursday</SelectItem>
-                    <SelectItem value="friday">Friday</SelectItem>
-                    <SelectItem value="saturday">Saturday</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>Used for calendar views.</FieldDescription>
-              </Field>
-
-              <div className="flex flex-col gap-3 border-y border-border/60 py-6 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold">Email visibility</p>
-                  <p className="text-xs text-muted-foreground">
-                    Allow workspace members to see each other’s email addresses
-                  </p>
-                </div>
-                <Switch defaultChecked aria-label="Toggle email visibility" />
-              </div>
-
-              <div className="space-y-3 border-t border-border/60 pt-6">
-                <p className="text-sm font-medium">Delete workspace</p>
-                <p className="text-xs text-muted-foreground">
-                  Once you delete your workspace, there is no going back. This
-                  action cannot be undone.
-                </p>
-                <Button variant="destructive" size="sm" className="mt-2">
-                  Delete workspace
-                </Button>
-              </div>
-            </div>
-          </section>
-        );
-      */
       case "Account":
       default:
         return (
@@ -136,10 +61,10 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <p className="text-lg font-semibold leading-tight">
-                    {user?.name || "Loading..."}
+                    {currentUser?.name || (isLoadingUser ? "Loading..." : "User")}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {user?.email || "Loading..."}
+                    {currentUser?.email || (isLoadingUser ? "Loading..." : "")}
                   </p>
                 </div>
               </div>
@@ -148,11 +73,12 @@ export default function SettingsPage() {
                 <FieldLabel htmlFor="display-name">Display name</FieldLabel>
                 <Input
                   id="display-name"
-                  defaultValue={user?.name || ""}
-                  key={user?.name || "default"}
+                  defaultValue={currentUser?.name || ""}
+                  key={currentUser?.name || "default"}
+                  readOnly
                 />
                 <FieldDescription>
-                  Pick a name to be shown to other workspace members.
+                  Your display name as shown to other workspace members.
                 </FieldDescription>
               </Field>
 
@@ -160,11 +86,8 @@ export default function SettingsPage() {
                 <FieldLabel className="font-semibold">Email</FieldLabel>
                 <div className="flex items-center justify-between rounded-lg border border-input/60 bg-muted/20 px-3 py-2 text-sm text-foreground">
                   <span className="text-muted-foreground">
-                    {user?.email || "Loading..."}
+                    {currentUser?.email || (isLoadingUser ? "Loading..." : "")}
                   </span>
-                  {/*<span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
-                    Verified
-                  </span>*/}
                 </div>
                 <FieldDescription>
                   Your login email can’t be changed.

@@ -8,6 +8,8 @@ export const AUTH = {
   LOGIN: "/api/v1/auth/login",
   REGISTER: "/api/v1/auth/register",
   LIST_ACCOUNTS: "/api/v1/auth/",
+  UPDATE_USER: (id: string) => `/api/v1/auth/users/${id}`,
+  GET_USER: (id: string) => `/api/v1/auth/users/${id}`,
 } as const;
 
 // ── Workspaces ──────────────────────────────────────────────────────────────
