@@ -116,14 +116,21 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
   const [user, setUser] = React.useState<{name?: string, email?: string} | null>(null);
 
   React.useEffect(() => {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      try {
-        setUser(JSON.parse(userStr));
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
+    const fetchUser = () => {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          setUser(JSON.parse(userStr));
+        } catch (e) {
+          console.error("Failed to parse user from localStorage", e);
+        }
       }
-    }
+    };
+
+    fetchUser();
+
+    window.addEventListener("storage", fetchUser);
+    return () => window.removeEventListener("storage", fetchUser);
   }, []);
 
   const userInitials = React.useMemo(() => {
