@@ -29,7 +29,7 @@ export function InvitationList({
 
   const confirmRemove = () => {
     if (selectedInvitation) {
-      removeInvitationMutation.mutate(selectedInvitation.id, {
+      removeInvitationMutation.mutate(selectedInvitation.publicId, {
         onSuccess: () => {
           toast.success("Invitation cancelled", {
             description: `Invitation to ${selectedInvitation.email} has been cancelled.`,

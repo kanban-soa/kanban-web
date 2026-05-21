@@ -38,6 +38,7 @@ export type MemberRequest = {
 
 export type Invitation = {
   id: string;
+  publicId: string;
   email: string;
   role: WorkspaceRole;
   sentAt: string;
