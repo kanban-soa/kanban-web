@@ -5,50 +5,22 @@ import { Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-interface Invitation {
-  id: string;
-  email: string;
-  role: "Owner" | "Member" | "Observer";
-  sentAt: string;
-  workspace: string;
-  onAccept?: () => void;
-  onReject?: () => void;
-}
+import { useRemoveInvitation } from "@/hooks/use-workspaces";
+import type { Invitation } from "@/lib/api/types";
+import { toast } from "sonner";
 
 interface InvitationListProps {
   invitations?: Invitation[];
+  workspaceId: string;
 }
 
-const defaultInvitations: Invitation[] = [
-  {
-    id: "1",
-    email: "john.doe@company.com",
-    role: "Member",
-    sentAt: "Sent 2 days ago",
-    workspace: "Design Collective",
-  },
-  {
-    id: "2",
-    email: "lisa.park@company.com",
-    role: "Observer",
-    sentAt: "Sent 1 week ago",
-    workspace: "Design Collective",
-  },
-  {
-    id: "3",
-    email: "team.lead@company.com",
-    role: "Member",
-    sentAt: "Sent 3 days ago",
-    workspace: "Design Collective",
-  },
-];
-
 export function InvitationList({
-  invitations = defaultInvitations,
+  invitations = [],
+  workspaceId,
 }: InvitationListProps) {
   const [isRemoveOpen, setIsRemoveOpen] = React.useState(false);
   const [selectedInvitation, setSelectedInvitation] = React.useState<Invitation | null>(null);
+  const removeInvitationMutation = useRemoveInvitation(workspaceId);
 
   const handleRemoveInvitation = (invitation: Invitation) => {
     setSelectedInvitation(invitation);
@@ -57,10 +29,40 @@ export function InvitationList({
 
   const confirmRemove = () => {
     if (selectedInvitation) {
-      console.log("Removing invitation for:", selectedInvitation.email);
+      removeInvitationMutation.mutate(selectedInvitation.publicId, {
+        onSuccess: () => {
+          toast.success("Invitation cancelled", {
+            description: `Invitation to ${selectedInvitation.email} has been cancelled.`,
+          });
+          setIsRemoveOpen(false);
+          setSelectedInvitation(null);
+        },
+        onError: (error: any) => {
+          const status = error?.response?.status;
+          const message = error?.response?.data?.message || "Failed to cancel invitation";
+          
+          if (status === 404) {
+            toast.error("Invitation not found", {
+              description: "The invitation could not be found.",
+            });
+          } else if (status === 500) {
+            toast.error("Server error", {
+              description: "The server is temporarily unavailable. Please try again.",
+            });
+          } else {
+            toast.error("Error", {
+              description: message,
+            });
+          }
+          
+          // console.error("Remove invitation error:", {
+          //   status,
+          //   message,
+          //   error,
+          // });
+        },
+      });
     }
-    setIsRemoveOpen(false);
-    setSelectedInvitation(null);
   };
 
   return (
@@ -89,9 +91,9 @@ export function InvitationList({
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <Badge
                     variant={
-                      invitation.role === "Owner"
+                      invitation.role === "owner"
                         ? "default"
-                        : invitation.role === "Member"
+                        : invitation.role === "member"
                           ? "secondary"
                           : "outline"
                     }

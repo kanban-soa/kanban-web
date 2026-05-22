@@ -8,7 +8,7 @@ import { InvitationList } from "@/components/member/invitation-list";
 import { InviteMemberDialog } from "@/components/member/invite-member-dialog";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
-import { useWorkspaces } from "@/hooks/use-workspaces";
+import { useWorkspaces, useMember, useInvitations } from "@/hooks/use-workspaces";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MemberPage() {
@@ -17,6 +17,8 @@ export default function MemberPage() {
   const [currentWorkspaceId, setCurrentWorkspaceId] = React.useState("");
 
   const { data: workspaces, isLoading } = useWorkspaces();
+  const { data: memberData } = useMember(currentWorkspaceId ?? workspaces?.[0]?.id ?? "");
+  const { data: invitationsData } = useInvitations(currentWorkspaceId ?? workspaces?.[0]?.id ?? "");
 
   // Set initial workspace once loaded
   React.useEffect(() => {
@@ -111,7 +113,7 @@ export default function MemberPage() {
             <h2 className="text-lg font-semibold text-white mb-4">
               Active Members
             </h2>
-            <MembersTable />
+            <MembersTable members={memberData} workspaceId={currentWorkspaceId}/>
           </div>
 
           {/* Pending Invitations */}
@@ -119,7 +121,7 @@ export default function MemberPage() {
             <h2 className="text-lg font-semibold text-white mb-4">
               Invitations
             </h2>
-            <InvitationList />
+            <InvitationList invitations={invitationsData} workspaceId={currentWorkspaceId} />
           </div>
         </div>
       </div>
