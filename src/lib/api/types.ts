@@ -2,24 +2,34 @@
  * Shared API types used across API modules and hooks.
  */
 
-export type WorkspaceRole = "admin" | "member" | "owner" | "observer" ;
+export interface WorkspaceRole {
+  ADMIN: "admin";
+  MEMBER: "member";
+  OWNER: "owner";
+  OBSERVER: "observer";
+}
 
-export type MemberStatus = "active" | "invited" | "removed" | "cancelled";
+export interface MemberStatus {
+  ACTIVE: "active";
+  INVITED: "invited";
+  REMOVED: "removed";
+  CANCELLED: "cancelled";
+}
 
-export type Workspace = {
+export interface Workspace {
   id: string;
   name: string;
   boardIds: string[];
   members: string[];
 };
 
-export type Account = {
+export interface Account {
   id: string;
   email: string;
   name: string;
 };
 
-export type MemberRequest = {
+export interface MemberRequest {
   id: number;
   publicId: string;
   email: string;
@@ -36,19 +46,23 @@ export type MemberRequest = {
   status: string;
 };
 
-export type Invitation = {
+export interface Invitation {
   id: string;
   publicId: string;
   email: string;
   role: WorkspaceRole;
   sentAt: string;
   workspace: string;
+  workspaceName?: string;
+  workspaceId?: string;
+  status?: MemberStatus;
 };
 
-export type InviteMemberRequest = {
+export interface InviteMemberRequest {
   email: string;
-};
+}
 
-export type ChangeRoleRequest = {
+export interface ChangeRoleRequest {
   role: WorkspaceRole;
 };
+

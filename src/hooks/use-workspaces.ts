@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listWorkspaces, getWorkspace, createWorkspace, getMember, inviteMember, changeRole, removeMember, getInvitations, removeInvitation } from "@/lib/api/workspace.api";
+import { listWorkspaces, getWorkspace, createWorkspace, getMember, inviteMember, changeRole, removeMember, getInvitations, removeInvitation, acceptInvitation, cancelInvitation } from "@/lib/api/workspace.api";
 import type { ChangeRoleRequest, InviteMemberRequest } from "@/lib/api/types";
 
 export function useWorkspaces() {
@@ -75,11 +75,11 @@ export function useChangeRoleMember(workspaceId: string, memberId: string) {
   });
 }
 
-export function useInvitations(workspaceId: string) {
+
+export function useInvitations() {
   return useQuery({
-    queryKey: ["workspaces", workspaceId, "invitations"],
-    queryFn: () => getInvitations(workspaceId),
-    enabled: !!workspaceId,
+    queryKey: ["invitations"],
+    queryFn: getInvitations,
   });
 }
 
@@ -89,6 +89,28 @@ export function useRemoveInvitation(workspaceId: string) {
     mutationFn: (invitationId: string) => removeInvitation(workspaceId, invitationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId, "invitations"] });
+    },
+  });
+}
+
+
+export function useAcceptInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: string) => acceptInvitation(invitationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invitations"] });
+    },
+  });
+}
+
+
+export function useCancelInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invitationId: string) => cancelInvitation(invitationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invitations"] });
     },
   });
 }

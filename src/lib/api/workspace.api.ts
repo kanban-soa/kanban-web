@@ -51,8 +51,10 @@ export async function removeMember(
   await api.delete(WORKSPACES.REMOVE_MEMBER(workspaceId, memberId));
 }
 
-export async function getInvitations(workspaceId: string): Promise<Invitation[]> {
-  const { data } = await api.get<Invitation[] | { data: Invitation[] }>(WORKSPACES.INVITATIONS(workspaceId));
+
+// Get all invitations for the current user
+export async function getInvitations(): Promise<Invitation[]> {
+  const { data } = await api.get<Invitation[] | { data: Invitation[] }>("/api/v1/workspaces/invitations");
   return Array.isArray(data) ? data : (data as any)?.data ?? [];
 }
 
@@ -61,4 +63,16 @@ export async function removeInvitation(
   invitationId: string,
 ): Promise<void> {
   await api.delete(WORKSPACES.REMOVE_INVITATION(workspaceId, invitationId));
+}
+
+
+// Accept invitation (user-scoped)
+export async function acceptInvitation(invitationId: string): Promise<void> {
+  await api.patch(`/api/v1/invitations/${invitationId}/accept`);
+}
+
+
+// Reject invitation (user-scoped)
+export async function cancelInvitation(invitationId: string): Promise<void> {
+  await api.patch(`/api/v1/invitations/${invitationId}/reject`);
 }
