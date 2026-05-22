@@ -4,7 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import WorkspaceCard from "@/components/workspace/workspace-card";
 import WorkspaceDialog from "@/components/workspace/workspace-dialog";
@@ -35,6 +35,7 @@ export default function WorkspacesPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={() => setIsCreateOpen(true)} className="px-3 py-2">
+              <Plus />
               New Workspace
             </Button>
           </div>

@@ -37,7 +37,7 @@ export function WorkspaceCard({
         <div
           className={cn(
             "flex h-16 w-16 shrink-0 items-center justify-center rounded-lg font-bold text-lg text-white",
-            "bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md"
+            "bg-gradient-to-br from-gray-500 to-gray-700 shadow-md"
           )}
         >
           {initials}
