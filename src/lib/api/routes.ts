@@ -33,5 +33,7 @@ export const NOTIFICATIONS = {
 
 // ── Statistics ──────────────────────────────────────────────────────────────
 export const STATISTICS = {
-  GET: "/api/v1/statistics",
+  SUMMARY: (workspaceId: string) => `/api/v1/statistics/${workspaceId}`,
+  EXPORT: (workspaceId: string) => `/api/v1/statistics/${workspaceId}/export`,
+  ACTIVITIES: (workspaceId: string) => `/api/v1/statistics/${workspaceId}/activities`,
 } as const;
