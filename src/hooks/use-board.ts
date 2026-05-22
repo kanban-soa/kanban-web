@@ -90,7 +90,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     (boardId: Id) => {
       const board = state.boards[boardId];
       if (!board) return [];
-      return board.listIds.map((id) => state.lists[id]).filter(Boolean);
+      return (board.listIds || []).map((id) => state.lists[id]).filter(Boolean);
     },
     [state.boards, state.lists],
   );
@@ -99,7 +99,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
     (listId: Id) => {
       const list = state.lists[listId];
       if (!list) return [];
-      return list.cardIds.map((id) => state.cards[id]).filter(Boolean);
+      return (list.cardIds || []).map((id) => state.cards[id]).filter(Boolean);
     },
     [state.lists, state.cards],
   );
@@ -158,10 +158,10 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
 
       const next = structuredClone(stateRef.current) as BoardsManagementState;
 
-      for (const listId of board.listIds) {
+      for (const listId of (board.listIds || [])) {
         const list = next.lists[listId];
         if (list) {
-          for (const cardId of list.cardIds) {
+          for (const cardId of (list.cardIds || [])) {
             delete next.cards[cardId];
           }
         }
@@ -171,7 +171,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       delete next.boards[boardId];
       const workspace = next.workspaces[board.workspaceId];
       if (workspace) {
-        workspace.boardIds = workspace.boardIds.filter((id) => id !== boardId);
+        workspace.boardIds = (workspace.boardIds || []).filter((id) => id !== boardId);
       }
 
       persist(next);
@@ -187,6 +187,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       const id = makeId("list");
       const t = nowIso();
       next.lists[id] = { id, boardId, title: title.trim() || "Untitled list", cardIds: [], createdAt: t, updatedAt: t };
+      if (!next.boards[boardId].listIds) next.boards[boardId].listIds = [];
       next.boards[boardId].listIds.push(id);
       next.boards[boardId].updatedAt = t;
       persist(next);
@@ -224,12 +225,12 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
       const next = structuredClone(stateRef.current) as BoardsManagementState;
       const t = nowIso();
 
-      for (const cardId of list.cardIds) {
+      for (const cardId of (list.cardIds || [])) {
         delete next.cards[cardId];
       }
 
       delete next.lists[listId];
-      next.boards[boardId].listIds = next.boards[boardId].listIds.filter((id) => id !== listId);
+      next.boards[boardId].listIds = (next.boards[boardId].listIds || []).filter((id) => id !== listId);
       next.boards[boardId].updatedAt = t;
       persist(next);
     },
@@ -254,6 +255,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
         createdAt: t,
         updatedAt: t,
       };
+      if (!next.lists[listId].cardIds) next.lists[listId].cardIds = [];
       next.lists[listId].cardIds.push(id);
       next.lists[listId].updatedAt = t;
       next.boards[boardId].updatedAt = t;
@@ -277,6 +279,8 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
         const fromList = next.lists[card.listId];
         const toList = next.lists[patch.listId];
         if (fromList && toList) {
+          if (!fromList.cardIds) fromList.cardIds = [];
+          if (!toList.cardIds) toList.cardIds = [];
           fromList.cardIds = fromList.cardIds.filter((id) => id !== cardId);
           toList.cardIds.push(cardId);
           fromList.updatedAt = t;
@@ -307,7 +311,7 @@ export function useBoardsManagement(workspaceId: Id): BoardsManagementSelectors 
 
       const list = next.lists[card.listId];
       if (list) {
-        list.cardIds = list.cardIds.filter((id) => id !== cardId);
+        list.cardIds = (list.cardIds || []).filter((id) => id !== cardId);
         list.updatedAt = t;
       }
 

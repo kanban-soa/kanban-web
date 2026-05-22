@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MoreHorizontal, Plus, Zap } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ export function BoardView({
     deleteList,
     updateBoard,
     deleteBoard,
+    updatecard,
   } = useBoardsManagement(workspaceId);
   const board = getBoard(boardId);
   const lists = getListsForBoard(boardId);
@@ -251,6 +252,7 @@ export function BoardView({
                 onAddcard={(t, d) => createcard(boardId, list.id, t, d)}
                 onUpdateList={(newTitle) => updateList(list.id, { title: newTitle })}
                 onDeleteList={() => deleteList(boardId, list.id)}
+                onMoveCard={(cardId, newListId) => updatecard(cardId, { listId: newListId })}
               />
             ))
           )}
@@ -307,6 +309,7 @@ function ListColumn({
   onAddcard,
   onUpdateList,
   onDeleteList,
+  onMoveCard,
 }: {
   workspaceId: Id;
   boardId: Id;
@@ -316,6 +319,7 @@ function ListColumn({
   onAddcard: (title: string, description: string) => void;
   onUpdateList: (title: string) => void;
   onDeleteList: () => void;
+  onMoveCard: (cardId: Id, newListId: Id) => void;
 }) {
   const [cardTitle, setcardTitle] = React.useState("");
   const [cardDescription, setcardDescription] = React.useState("");
@@ -324,6 +328,7 @@ function ListColumn({
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [editTitle, setEditTitle] = React.useState(title);
+  const [isOver, setIsOver] = React.useState(false);
 
   const handleTitleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -414,11 +419,34 @@ function ListColumn({
         </div>
       </div>
 
-      <div className="space-y-2 p-3">
+      <div
+        className={cn(
+          "space-y-2 p-3 min-h-[100px] transition-colors rounded-b-xl",
+          isOver && "bg-primary/5"
+        )}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsOver(true);
+        }}
+        onDragLeave={() => setIsOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsOver(false);
+          const cardId = e.dataTransfer.getData("cardId");
+          if (cardId) {
+            onMoveCard(cardId, listId);
+          }
+        }}
+      >
         {cards.map((t) => (
           <Link
             key={t.id}
             href={`/workspaces/${workspaceId}/boards/${boardId}/cards/${t.id}`}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("cardId", t.id);
+              e.dataTransfer.effectAllowed = "move";
+            }}
             className="block rounded-lg border bg-card px-3 py-2 text-sm shadow-sm transition hover:bg-muted/40 cursor-pointer"
           >
             <div className="font-medium leading-5">{t.title}</div>
@@ -445,7 +473,6 @@ function ListColumn({
             ) : null}
           </Link>
         ))}
-
       </div>
 
       <Dialog open={iscardOpen} onOpenChange={setIscardOpen}>
