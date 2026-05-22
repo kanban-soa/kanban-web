@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login, register } from "@/lib/api/auth.api";
 import { ThemeToggle } from "@/components/theme/theme-provider";
+import { mockState } from "@/lib/board/mockWorkspace";
+import { saveWorkspaceState } from "@/lib/board/storage";
 
 type Mode = "login" | "register";
 
@@ -19,6 +21,12 @@ export default function LoginForm() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const handleGuestLogin = () => {
+    // Seed default data for guest
+    saveWorkspaceState("default", mockState);
+    router.push("/workspaces/default/boards");
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -139,8 +147,13 @@ export default function LoginForm() {
               {mode === "login" ? "Create an account" : "Back to sign in"}
             </Button>
 
-            <Button asChild variant="secondary" className="h-10 w-full">
-              <Link href="/workspaces/default/boards">Continue as guest</Link>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-10 w-full"
+              onClick={handleGuestLogin}
+            >
+              Continue as guest
             </Button>
           </form>
         </div>
