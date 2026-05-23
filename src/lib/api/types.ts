@@ -77,3 +77,13 @@ export interface ChangeRoleRequest {
   role: WorkspaceRole;
 };
 
+export interface Board {
+  id: string;
+  publicId: string;
+  title: string;
+  description?: string | null;
+  workspaceId: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string | null;
+}
