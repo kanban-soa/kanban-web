@@ -84,14 +84,14 @@ export function WorkspaceCard({
       </div>
 
       {/* Switch Workspace Button */}
-      <Button
+      {/* <Button
         onClick={onSwitchWorkspace}
         variant="outline"
         className="w-full bg-muted-700 border-muted-700 text-white hover:bg-muted-600 gap-2"
       >
         <ArrowRightLeft className="h-4 w-4" />
         Switch Workspace
-      </Button>
+      </Button> */}
     </div>
   );
 }
