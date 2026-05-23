@@ -71,7 +71,7 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
                 }}
                 className="group relative mr-5 flex h-[150px] w-full items-center justify-center rounded-md border border-dashed border-light-400 shadow-sm cursor-pointer"
               >
-                <div className="text-base font-semibold tracking-tight">{b.title}</div>
+                <div className="text-base font-semibold tracking-tight">{b.name}</div>
                 <div className="pointer-events-none absolute inset-0 scale-95 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.18),transparent_60%)] opacity-0 blur-[2px] transition duration-300 ease-out group-hover:scale-100 group-hover:opacity-100" />
                 <Button
                   variant="ghost"
@@ -80,7 +80,7 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
                   className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setDeleteBoardId(b.id);
+                    setDeleteBoardId(String(b.id));
                   }}
                 >
                   <Trash2 />
@@ -113,7 +113,7 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && title.trim()) {
                     createBoardMutation.mutate(
-                      { title: title.trim() },
+                      { name: title.trim() },
                       {
                         onSuccess: (board) => {
                           setTitle("");
@@ -134,7 +134,7 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
                   disabled={!title.trim() || createBoardMutation.isPending}
                   onClick={() =>
                     createBoardMutation.mutate(
-                      { title: title.trim() },
+                      { name: title.trim() },
                       {
                         onSuccess: (board) => {
                           setTitle("");

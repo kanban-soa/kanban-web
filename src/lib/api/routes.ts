@@ -28,7 +28,7 @@ export const WORKSPACES = {
 
 // ── Boards ──────────────────────────────────────────────────────────────────
 export const BOARDS = {
-  LIST: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/boards`,
+  LIST: "/api/v1/boards",
   CREATE: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/boards`,
   DELETE: (workspaceId: string, boardId: string) =>
     `/api/v1/workspaces/${workspaceId}/boards/${boardId}`,

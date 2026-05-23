@@ -7,58 +7,57 @@ import {
 import type { Board } from "@/lib/api/types";
 
 // ─── Query: list all boards in a workspace ────────────────────────────────────
-export function useBoards(workspacePublicId: string) {
+export function useBoards(workspaceId: string) {
   return useQuery<Board[]>({
-    queryKey: ["boards", workspacePublicId],
-    queryFn: () => listBoards(workspacePublicId),
-    enabled: !!workspacePublicId,
+    queryKey: ["boards", workspaceId],
+    queryFn: () => listBoards(workspaceId),
+    enabled: !!workspaceId,
   });
 }
 
 // ─── Query: single board by id ────────────────────────────────────────────────
-export function useBoard(workspacePublicId: string, boardId: string) {
-  const { data: boards = [] } = useBoards(workspacePublicId);
+export function useBoard(workspaceId: string, boardId: string | number) {
+  const { data: boards = [], isLoading } = useBoards(workspaceId);
   return {
-    data: boards.find((b) => b.id === boardId) ?? null,
+    data: boards.find((b) => String(b.id) === String(boardId)) ?? null,
+    isLoading,
   };
 }
 
 // ─── Mutation: create board ───────────────────────────────────────────────────
-export function useCreateBoard(workspacePublicId: string) {
+export function useCreateBoard(workspaceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { title: string; description?: string }) =>
-      createBoard(workspacePublicId, payload),
+    mutationFn: (payload: { name: string; description?: string }) =>
+      createBoard(workspaceId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boards", workspacePublicId] });
+      queryClient.invalidateQueries({ queryKey: ["boards", workspaceId] });
     },
   });
 }
 
 // ─── Mutation: delete board ───────────────────────────────────────────────────
-export function useDeleteBoard(workspacePublicId: string) {
+export function useDeleteBoard(workspaceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (boardId: string) => deleteBoard(workspacePublicId, boardId),
+    mutationFn: (boardId: string) => deleteBoard(workspaceId, boardId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boards", workspacePublicId] });
+      queryClient.invalidateQueries({ queryKey: ["boards", workspaceId] });
     },
   });
 }
 
 // ─── Compound hook: boards management (list + create + delete) ────────────────
-// Mirrors the shape previously returned by the localStorage-based hook so that
-// call-sites that destructure { boards, createBoard, deleteBoard } keep working.
-export function useBoardsManagement(workspacePublicId: string) {
-  const { data: boards = [], isLoading } = useBoards(workspacePublicId);
-  const createBoardMutation = useCreateBoard(workspacePublicId);
-  const deleteBoardMutation = useDeleteBoard(workspacePublicId);
+export function useBoardsManagement(workspaceId: string) {
+  const { data: boards = [], isLoading } = useBoards(workspaceId);
+  const createBoardMutation = useCreateBoard(workspaceId);
+  const deleteBoardMutation = useDeleteBoard(workspaceId);
 
   return {
     boards,
     isLoading,
-    createBoard: (title: string, description?: string) =>
-      createBoardMutation.mutateAsync({ title, description }),
+    createBoard: (name: string, description?: string) =>
+      createBoardMutation.mutateAsync({ name, description }),
     deleteBoard: (boardId: string) => deleteBoardMutation.mutateAsync(boardId),
     isCreating: createBoardMutation.isPending,
     isDeleting: deleteBoardMutation.isPending,
