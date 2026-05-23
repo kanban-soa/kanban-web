@@ -4,15 +4,20 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useWorkspaces } from "@/hooks/use-workspaces";
+import WorkspaceCard from "@/components/workspace/workspace-card";
+import WorkspaceDialog from "@/components/workspace/workspace-dialog";
 import { InviteMemberDialog } from "@/components/member/invite-member-dialog";
+import { toast } from "sonner";
 
 export default function WorkspacesPage() {
   const router = useRouter();
   const { data: workspaces, isLoading } = useWorkspaces();
   const [inviteWorkspaceId, setInviteWorkspaceId] = React.useState("");
   const [inviteWorkspaceName, setInviteWorkspaceName] = React.useState("");
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
+  const [workspaceName, setWorkspaceName] = React.useState("");
 
   const handleInvite = (e: React.MouseEvent, ws: { id: string; name: string }) => {
     e.stopPropagation();
@@ -28,6 +33,12 @@ export default function WorkspacesPage() {
             <div className="text-lg font-semibold tracking-tight">Workspaces</div>
             <div className="text-xs text-muted-foreground">Select a workspace to view boards</div>
           </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setIsCreateOpen(true)} className="px-3 py-2">
+              <Plus />
+              New Workspace
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -40,43 +51,19 @@ export default function WorkspacesPage() {
           </div>
         ) : !workspaces || workspaces.length === 0 ? (
           <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">
-            No workspaces yet. Create one from the sidebar.
+            No workspaces yet. Create one from the button above.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {workspaces.map((ws) => (
-              <div
+              <WorkspaceCard
                 key={ws.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => router.push(`/workspaces/${ws.id}/boards`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    router.push(`/workspaces/${ws.id}/boards`);
-                  }
-                }}
-                className="group relative flex h-[120px] w-full items-center justify-center rounded-lg border border-dashed border-light-400 shadow-sm cursor-pointer transition hover:bg-muted/40"
-              >
-                <div className="flex size-12 items-center justify-center rounded-lg bg-muted text-lg font-bold">
-                  {ws.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="ml-4 text-left flex-1 min-w-0">
-                  <div className="text-base font-semibold tracking-tight">{ws.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {ws.members ?? 0} members
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => handleInvite(e, ws)}
-                  className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity gap-1"
-                  title="Invite member"
-                >
-                  <UserPlus className="h-4 w-4" />
-                </Button>
-              </div>
+                id={ws.id}
+                name={ws.name}
+                members={ws.members}
+                onClick={(id) => router.push(`/workspaces/${id}/boards`)}
+                onInvite={(e, w) => handleInvite(e as React.MouseEvent, w as { id: string; name: string })}
+              />
             ))}
           </div>
         )}
@@ -93,6 +80,8 @@ export default function WorkspacesPage() {
           }
         }}
       />
+
+      <WorkspaceDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
     </div>
   );
 }

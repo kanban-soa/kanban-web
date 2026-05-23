@@ -37,7 +37,7 @@ export function WorkspaceCard({
         <div
           className={cn(
             "flex h-16 w-16 shrink-0 items-center justify-center rounded-lg font-bold text-lg text-white",
-            "bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md"
+            "bg-gradient-to-br from-gray-500 to-gray-700 shadow-md"
           )}
         >
           {initials}
@@ -84,14 +84,14 @@ export function WorkspaceCard({
       </div>
 
       {/* Switch Workspace Button */}
-      <Button
+      {/* <Button
         onClick={onSwitchWorkspace}
         variant="outline"
         className="w-full bg-muted-700 border-muted-700 text-white hover:bg-muted-600 gap-2"
       >
         <ArrowRightLeft className="h-4 w-4" />
         Switch Workspace
-      </Button>
+      </Button> */}
     </div>
   );
 }

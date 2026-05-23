@@ -5,52 +5,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MoreVertical, LogOut, Shield } from "lucide-react";
+import type { MemberRequest } from "@/lib/api/types";
+import { WorkspaceRole } from "@/lib/api/types";
+import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import RoleSwitchModal from "@/components/member/role-switch-modal";
+import RemoveMemberModal from "@/components/member/remove-member-modal";
 
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: "Owner" | "Member" | "Observer";
-  status: "active" | "away";
-  avatar?: string;
-}
 
 interface MembersTableProps {
-  members?: Member[];
+  members?: MemberRequest[];
+  workspaceId: string;
 }
 
-const defaultMembers: Member[] = [
-  {
-    id: "1",
-    name: "Sarah Chen",
-    email: "sarah.chen@company.com",
-    role: "Owner",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Marcus Johnson",
-    email: "marcus.j@company.com",
-    role: "Member",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Emma Wilson",
-    email: "emma.w@company.com",
-    role: "Member",
-    status: "away",
-  },
-  {
-    id: "4",
-    name: "Alex Rodriguez",
-    email: "alex.r@company.com",
-    role: "Observer",
-    status: "active",
-  },
-];
-
-function getInitials(name: string): string {
+function getInitials(name: string | undefined): string {
+  if (!name) return "";
   return name
     .split(" ")
     .map((n) => n[0])
@@ -58,37 +28,92 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function MembersTable({ members = defaultMembers }: MembersTableProps) {
+export function MembersTable({ members, workspaceId }: MembersTableProps) {
   const [isDeactivateOpen, setIsDeactivateOpen] = React.useState(false);
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = React.useState(false);
-  const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<"Owner" | "Member" | "Observer">("Member");
+  const [selectedMember, setSelectedMember] = React.useState<MemberRequest | null>(null);
+  const [selectedRole, setSelectedRole] = React.useState<WorkspaceRole>(WorkspaceRole.MEMBER);
 
-  const handleDeactivate = (member: Member) => {
+  const removeMemberMutation = useRemoveMember(workspaceId);
+  const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.userId ?? ""));
+
+  const handleDeactivate = (member: MemberRequest) => {
     setSelectedMember(member);
     setIsDeactivateOpen(true);
   };
 
-  const handleRoleSwitch = (member: Member) => {
+  const handleRoleSwitch = (member: MemberRequest) => {
     setSelectedMember(member);
-    setSelectedRole(member.role);
+    setSelectedRole(member.role as WorkspaceRole);
     setIsRoleSwitchOpen(true);
   };
 
   const confirmDeactivate = () => {
     if (selectedMember) {
-      console.log("Deactivating member:", selectedMember.name);
+      removeMemberMutation.mutate(String(selectedMember.id), {
+        onSuccess: () => {
+          toast.success("Member removed", {
+            description: `${selectedMember.name} has been removed from the workspace.`,
+          });
+          setIsDeactivateOpen(false);
+          setSelectedMember(null);
+        },
+        onError: (error: any) => {
+          const status = error?.response?.status;
+          const message = error?.response?.data?.message || "Failed to remove member";
+          
+          if (status === 404) {
+            toast.error("Member not found", {
+              description: "The member could not be found.",
+            });
+          } else if (status === 500) {
+            toast.error("Server error", {
+              description: "The server is temporarily unavailable. Please try again.",
+            });
+          } else {
+            toast.error("Error", {
+              description: message,
+            });
+          }
+          
+        },
+      });
     }
-    setIsDeactivateOpen(false);
-    setSelectedMember(null);
   };
 
   const confirmRoleSwitch = () => {
     if (selectedMember) {
-      console.log("Switching role for:", selectedMember.name, "to", selectedRole);
+      changeRoleMutation.mutate(
+        { role: selectedRole as WorkspaceRole },
+        {
+          onSuccess: () => {
+            toast.success("Role updated", {
+              description: `${selectedMember.name}'s role has been changed to ${selectedRole}.`,
+            });
+            setIsRoleSwitchOpen(false);
+            setSelectedMember(null);
+          },
+          onError: (error: any) => {
+            const status = error?.response?.status;
+            const message = error?.response?.data?.message || "Failed to update role";
+            
+            if (status === 404) {
+              toast.error("Member not found", {
+                description: "The member could not be found.",
+              });
+            } else if (status === 500) {
+              toast.error("Server error", {
+                description: "The server is temporarily unavailable. Please try again.",
+              });
+            } else {
+              toast.error("Error", {
+                description: message,
+              });
+            }
+          },
+        }
+      );
     }
-    setIsRoleSwitchOpen(false);
-    setSelectedMember(null);
   };
 
   return (
@@ -111,7 +136,7 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
 
       {/* Rows */}
       <div className="divide-y divide-muted-700">
-        {members.map((member) => (
+        {(members && members.length > 0 ? members : []).map((member) => (
           <div
             key={member.id}
             className="grid grid-cols-4 gap-4 px-6 py-4 hover:bg-muted-800 transition-colors items-center"
@@ -124,11 +149,11 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
                   "bg-gradient-to-br from-gray-500 to-gray-600"
                 )}
               >
-                {getInitials(member.name)}
+                {getInitials(member.name || member.email)}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  {member.name}
+                  {member.name || member.email.split('@')[0]}
                 </p>
                 <p className="text-xs text-muted-400 truncate">
                   {member.email}
@@ -140,9 +165,9 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
             <div className="flex items-center">
               <Badge
                 variant={
-                  member.role === "Owner"
+                  member.role === WorkspaceRole.OWNER
                     ? "default"
-                    : member.role === "Member"
+                    : member.role === WorkspaceRole.MEMBER
                       ? "secondary"
                       : "outline"
                 }
@@ -194,95 +219,22 @@ export function MembersTable({ members = defaultMembers }: MembersTableProps) {
         ))}
       </div>
 
-      {/* Deactivate Confirmation Modal */}
-      {isDeactivateOpen && selectedMember ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIsDeactivateOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-muted-900 border-muted-700 p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold text-white">Remove Member</div>
-            <div className="mt-1 text-xs text-muted-400">
-              Are you sure you want to remove {selectedMember.name} from this workspace?
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setIsDeactivateOpen(false)}
-                className="bg-muted-800 border-muted-700 text-white hover:bg-muted-700"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={confirmDeactivate}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Remove Member
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <RemoveMemberModal
+        open={isDeactivateOpen}
+        member={selectedMember}
+        onClose={() => setIsDeactivateOpen(false)}
+        onConfirm={confirmDeactivate}
+      />
 
-      {/* Role Switch Modal */}
-      {isRoleSwitchOpen && selectedMember ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIsRoleSwitchOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold text-white">Change Role</div>
-            <div className="mt-1 text-xs text-muted-400">
-              Update role for {selectedMember.name}
-            </div>
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-muted-300 mb-2">
-                  Select New Role
-                </label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as "Owner" | "Member" | "Observer")}
-                  className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500/50"
-                >
-                  <option value="Owner">Owner</option>
-                  <option value="Member">Member</option>
-                  <option value="Observer">Observer</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setIsRoleSwitchOpen(false)}
-                  className="bg-muted-800 border-muted-700 text-white hover:bg-muted-700"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={confirmRoleSwitch}
-                  className="bg-gray-600 hover:bg-gray-700 text-white"
-                >
-                  Update Role
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <RoleSwitchModal
+        open={isRoleSwitchOpen}
+        member={selectedMember}
+        roles={[] as WorkspaceRole[]}
+        selectedRole={selectedRole}
+        onChangeRole={(r) => setSelectedRole(r)}
+        onClose={() => setIsRoleSwitchOpen(false)}
+        onConfirm={confirmRoleSwitch}
+      />
     </div>
   );
 }
