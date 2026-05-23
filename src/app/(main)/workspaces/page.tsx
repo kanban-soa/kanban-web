@@ -8,8 +8,10 @@ import { Plus } from "lucide-react";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import WorkspaceCard from "@/components/workspace/workspace-card";
 import WorkspaceDialog from "@/components/workspace/workspace-dialog";
+import DeleteWorkspaceDialog from "@/components/workspace/delete-workspace-dialog";
 import { InviteMemberDialog } from "@/components/member/invite-member-dialog";
-import { toast } from "sonner";
+
+type WorkspaceRef = { id: string | number; name: string; description?: string | null };
 
 export default function WorkspacesPage() {
   const router = useRouter();
@@ -17,7 +19,8 @@ export default function WorkspacesPage() {
   const [inviteWorkspaceId, setInviteWorkspaceId] = React.useState("");
   const [inviteWorkspaceName, setInviteWorkspaceName] = React.useState("");
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
-  const [workspaceName, setWorkspaceName] = React.useState("");
+  const [editWorkspace, setEditWorkspace] = React.useState<WorkspaceRef | null>(null);
+  const [deleteWorkspace, setDeleteWorkspace] = React.useState<WorkspaceRef | null>(null);
 
   const handleInvite = (e: React.MouseEvent, ws: { id: string; name: string }) => {
     e.stopPropagation();
@@ -63,6 +66,10 @@ export default function WorkspacesPage() {
                 members={ws.members}
                 onClick={(id) => router.push(`/workspaces/${id}/boards`)}
                 onInvite={(e, w) => handleInvite(e as React.MouseEvent, w as { id: string; name: string })}
+                onEdit={() =>
+                  setEditWorkspace({ id: ws.id, name: ws.name, description: ws.description })
+                }
+                onDelete={() => setDeleteWorkspace({ id: ws.id, name: ws.name })}
               />
             ))}
           </div>
@@ -82,6 +89,23 @@ export default function WorkspacesPage() {
       />
 
       <WorkspaceDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+
+      <WorkspaceDialog
+        mode="edit"
+        workspace={editWorkspace ?? undefined}
+        open={!!editWorkspace}
+        onOpenChange={(open) => {
+          if (!open) setEditWorkspace(null);
+        }}
+      />
+
+      <DeleteWorkspaceDialog
+        workspace={deleteWorkspace ?? undefined}
+        open={!!deleteWorkspace}
+        onOpenChange={(open) => {
+          if (!open) setDeleteWorkspace(null);
+        }}
+      />
     </div>
   );
 }

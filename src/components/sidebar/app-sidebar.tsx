@@ -220,8 +220,8 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className={`flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/50 transition-colors ${
-                        isCollapsed ? "justify-center px-0" : ""
+                      className={`flex min-w-0 items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/50 transition-colors ${
+                        isCollapsed ? "justify-center px-0" : "flex-1"
                       }`}
                     >
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs">
@@ -230,7 +230,10 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                           : "W"}
                       </div>
                       {!isCollapsed && (
-                        <span className="font-medium text-[15px] text-sidebar-foreground">
+                        <span
+                          className="min-w-0 flex-1 truncate text-left font-medium text-[15px] text-sidebar-foreground"
+                          title={currentWorkspace?.name}
+                        >
                           {currentWorkspace?.name ?? (isLoadingWorkspaces ? "Loading..." : "No workspace")}
                         </span>
                       )}
@@ -246,7 +249,10 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                     {workspaces.map((ws) => (
                       <DropdownMenuItem
                         key={ws.publicId}
-                        onClick={() => setCurrentWorkspace(ws)}
+                        onClick={() => {
+                          setCurrentWorkspace(ws);
+                          router.push(`/workspaces/${ws.publicId}/boards`);
+                        }}
                         className="cursor-pointer"
                       >
                         <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
@@ -272,7 +278,7 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                 {!isCollapsed && (
                   <Popover open={searchOpen} onOpenChange={setSearchOpen}>
                     <PopoverTrigger asChild>
-                      <button className="inline-flex size-9 items-center justify-center rounded-md border border-sidebar-border bg-sidebar hover:bg-sidebar-accent/50">
+                      <button className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-sidebar hover:bg-sidebar-accent/50">
                         <Search className="size-4 text-sidebar-foreground/70" />
                       </button>
                     </PopoverTrigger>

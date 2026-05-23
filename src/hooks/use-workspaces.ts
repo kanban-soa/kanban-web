@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listWorkspaces, getWorkspace, createWorkspace, getMember, inviteMember, changeRole, removeMember, getInvitations, removeInvitation, acceptInvitation, cancelInvitation } from "@/lib/api/workspace.api";
+import { listWorkspaces, getWorkspace, createWorkspace, updateWorkspace, deleteWorkspace, getMember, inviteMember, changeRole, removeMember, getInvitations, removeInvitation, acceptInvitation, cancelInvitation } from "@/lib/api/workspace.api";
+import type { UpdateWorkspaceRequest } from "@/lib/api/workspace.api";
 import type { ChangeRoleRequest, InviteMemberRequest } from "@/lib/api/types";
 
 export function useWorkspaces() {
@@ -21,6 +22,27 @@ export function useCreateWorkspace() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createWorkspace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
+}
+
+export function useUpdateWorkspace(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateWorkspaceRequest) => updateWorkspace(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      queryClient.invalidateQueries({ queryKey: ["workspaces", id] });
+    },
+  });
+}
+
+export function useDeleteWorkspace() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteWorkspace(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspaces"] });
     },
