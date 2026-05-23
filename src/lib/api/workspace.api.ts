@@ -4,6 +4,7 @@ import type { Workspace, InviteMemberRequest, Invitation } from "./types";
 
 export async function listWorkspaces(): Promise<Workspace[]> {
   const { data } = await api.get<Workspace[] | { data: Workspace[] }>(WORKSPACES.LIST);
+  console.log("[LIB.API.WORKSPACES][7] Fetched workspaces:", JSON.stringify(data));
   return Array.isArray(data) ? data : data.data ?? [];
 }
 

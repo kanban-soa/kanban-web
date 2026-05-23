@@ -1,14 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { Bell, CheckCircle2, Clock3, PlusCircle } from "lucide-react";
+import { Bell, CheckCircle2, Clock3, Download, PlusCircle } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import { useStatisticsSummary } from "@/hooks/use-statistics";
-import type { StatisticsPriority, StatisticsRange } from "@/lib/api/statistics.api";
+import {
+  exportStatistics,
+  type StatisticsPriority,
+  type StatisticsRange,
+} from "@/lib/api/statistics.api";
 
 const range: StatisticsRange = "30d";
+const emptyPriorities: StatisticsPriority[] = [];
 
 function formatInitials(value: string) {
   if (!value) return "NA";
@@ -44,6 +57,8 @@ function buildPrioritySegments(priorities: StatisticsPriority[]) {
 export default function StatisticPage() {
   const { data: workspaces, isLoading: isWorkspaceLoading } = useWorkspaces();
   const workspaceId = workspaces?.[0]?.id;
+  const [isExporting, setIsExporting] = React.useState(false);
+  const [exportFormat, setExportFormat] = React.useState<"csv" | "json">("csv");
   //TODO
   const {
     data: summary,
@@ -62,7 +77,7 @@ export default function StatisticPage() {
 
   const metrics = summary?.metrics;
   const activities = summary?.activities ?? [];
-  const priorities = summary?.priorities ?? [];
+  const priorities = summary?.priorities ?? emptyPriorities;
   const workloads = summary?.workloads ?? [];
   const prioritySegments = React.useMemo(
     () => buildPrioritySegments(priorities),
@@ -119,9 +134,61 @@ export default function StatisticPage() {
   const formatPercent = (value: number | undefined) =>
     value === undefined || Number.isNaN(value) ? "—" : `${percentFormatter.format(value)}%`;
 
+  const handleExport = async () => {
+    if (!workspaceId || isExporting) return;
+    setIsExporting(true);
+    try {
+      const { blob, contentType } = await exportStatistics(workspaceId, range, exportFormat);
+      const fileName = `statistics-${workspaceId}-${range}.${exportFormat}`;
+      const downloadBlob = contentType ? new Blob([blob], { type: contentType }) : blob;
+      const url = window.URL.createObjectURL(downloadBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export statistics", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background p-8">
       <div className="mx-auto max-w-7xl space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black">Statistics</h1>
+            <p className="text-sm text-muted-foreground">Overview for the last 30 days</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={exportFormat}
+              onValueChange={(value) => setExportFormat(value as "csv" | "json")}
+              disabled={!workspaceId || isLoading || isExporting}
+            >
+              <SelectTrigger className="h-9 w-[110px]">
+                <SelectValue placeholder="Format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="csv">CSV</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={!workspaceId || isLoading || isExporting}
+            >
+              <Download className="size-4" />
+              {isExporting ? "Exporting..." : "Export"}
+            </Button>
+          </div>
+        </div>
+
         {isStatsError ? (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
             Unable to load statistics at the moment. Please try again later.
