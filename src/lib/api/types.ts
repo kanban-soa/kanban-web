@@ -2,25 +2,36 @@
  * Shared API types used across API modules and hooks.
  */
 
-export interface WorkspaceRole {
-  ADMIN: "admin";
-  MEMBER: "member";
-  OWNER: "owner";
-  OBSERVER: "observer";
+export enum WorkspaceRole {
+  ADMIN = "admin",
+  MEMBER = "member",
+  OWNER = "owner",
+  OBSERVER = "observer"
 }
 
-export interface MemberStatus {
-  ACTIVE: "active";
-  INVITED: "invited";
-  REMOVED: "removed";
-  CANCELLED: "cancelled";
+export enum MemberStatus {
+  ACTIVE = "active",
+  INVITED = "invited",
+  REMOVED = "removed",
+  CANCELLED = "cancelled"
 }
 
 export interface Workspace {
-  id: string;
+  id: number;
+  publicId: string;
+  slug: string;
+  plan: string;
   name: string;
-  boardIds: string[];
-  members: string[];
+  description: string | null;
+  showEmailsToMembers: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  // Fields present in list/detail responses:
+  boardIds?: string[];
+  members?: number;
 };
 
 export interface Account {
@@ -41,9 +52,9 @@ export interface MemberRequest {
   updatedAt: string | null;
   deletedAt: string | null;
   deletedBy: string | null;
-  role: string;
+  role: WorkspaceRole;
   roleId: string | null;
-  status: string;
+  status: MemberStatus;
 };
 
 export interface Invitation {

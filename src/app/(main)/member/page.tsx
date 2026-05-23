@@ -18,7 +18,7 @@ export default function MemberPage() {
 
   const { data: workspaces, isLoading } = useWorkspaces();
   const { data: memberData } = useMember(currentWorkspaceId ?? workspaces?.[0]?.id ?? "");
-  const { data: invitationsData } = useInvitations(currentWorkspaceId ?? workspaces?.[0]?.id ?? "");
+  const { data: invitationsData } = useInvitations();
 
   // Set initial workspace once loaded
   React.useEffect(() => {

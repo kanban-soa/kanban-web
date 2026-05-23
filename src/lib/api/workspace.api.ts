@@ -13,8 +13,8 @@ export async function getWorkspace(id: string): Promise<Workspace> {
 }
 
 export async function createWorkspace(name: string): Promise<Workspace> {
-  const { data } = await api.post<Workspace>(WORKSPACES.CREATE, { name });
-  return data;
+  const { data } = await api.post<{ data: Workspace }>(WORKSPACES.CREATE, { name });
+  return data.data;
 }
 
 export async function getMember(workspaceId: string): Promise<MemberRequest[]> {
