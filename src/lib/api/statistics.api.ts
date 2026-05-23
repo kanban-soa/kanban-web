@@ -44,8 +44,27 @@ export type StatisticsSummary = {
   workloads: StatisticsWorkload[];
 };
 
+export type StatisticsSelfPerformanceTask = {
+  id: string | number;
+  title: string;
+  dueDate: string;
+};
+
+export type StatisticsSelfPerformance = {
+  range: StatisticsRange;
+  completedTotal: number;
+  overdueTotal: number;
+  comparisonPercentage: number;
+  completedPercentage: number;
+  overdueTasks: StatisticsSelfPerformanceTask[];
+};
+
 type StatisticsSummaryResponse = {
   data: StatisticsSummary;
+};
+
+type StatisticsSelfPerformanceResponse = {
+  data: StatisticsSelfPerformance;
 };
 
 const STATISTICS_BASE_URL =
@@ -87,4 +106,18 @@ export async function exportStatistics(
     blob: response.data,
     contentType: response.headers?.["content-type"],
   };
+}
+
+export async function getStatisticsSelfPerformance(
+  workspaceId: string,
+  range: StatisticsRange = "7d",
+): Promise<StatisticsSelfPerformance> {
+  const { data } = await api.get<StatisticsSelfPerformanceResponse>(
+    buildStatisticsUrl(STATISTICS.SELF_PERFORMANCE(workspaceId)),
+    {
+      params: { range },
+    },
+  );
+
+  return data.data;
 }

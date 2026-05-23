@@ -36,4 +36,6 @@ export const STATISTICS = {
   SUMMARY: (workspaceId: string) => `/api/v1/statistics/${workspaceId}`,
   EXPORT: (workspaceId: string) => `/api/v1/statistics/${workspaceId}/export`,
   ACTIVITIES: (workspaceId: string) => `/api/v1/statistics/${workspaceId}/activities`,
+  SELF_PERFORMANCE: (workspaceId: string) =>
+    `/api/v1/statistics/${workspaceId}/self-performance`,
 } as const;

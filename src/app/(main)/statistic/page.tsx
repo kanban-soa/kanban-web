@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Bell, CheckCircle2, Clock3, Download, PlusCircle } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -164,7 +165,15 @@ export default function StatisticPage() {
             <h1 className="text-2xl font-black">Statistics</h1>
             <p className="text-sm text-muted-foreground">Overview for the last 30 days</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
+              <Button asChild size="sm" variant="secondary">
+                <Link href="/statistic">Team</Link>
+              </Button>
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/statistic/self">Self</Link>
+              </Button>
+            </div>
             <Select
               value={exportFormat}
               onValueChange={(value) => setExportFormat(value as "csv" | "json")}
