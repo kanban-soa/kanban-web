@@ -15,6 +15,7 @@ import {
   Zap,
   MoonStar,
   SunMedium,
+  MailIcon,
 } from "lucide-react";
 
 import {
@@ -55,6 +56,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useWorkspaceContext } from "@/contexts/workspace.context";
 
 const navItems = [
   { title: "Workspaces", icon: Zap, href: "/workspaces" },
@@ -62,12 +64,9 @@ const navItems = [
   { title: "Statistic", icon: ChartColumnIncreasing, href: "/statistic" },
   { title: "Members", icon: UsersRound, href: "/member" },
   { title: "Settings", icon: Settings, href: "/settings" },
+  { title: "Invitation", icon: MailIcon, href: "/invitations" },
 ];
 
-const workspaces = [
-  { id: "default", name: "mychannel", initials: "M" },
-  { id: "work", name: "Workspace 2", initials: "W" },
-];
 
 type CreateWorkspaceForm = {
   name: string;
@@ -112,6 +111,9 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
     description: "",
   });
   const [isCreating, setIsCreating] = React.useState(false);
+
+  const { currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces } =
+    useWorkspaceContext();
 
   const [user, setUser] = React.useState<{name?: string, email?: string} | null>(null);
 
@@ -223,11 +225,13 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                       }`}
                     >
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs">
-                        {workspaces[0]?.initials ?? "M"}
+                        {currentWorkspace
+                          ? currentWorkspace.name.substring(0, 1).toUpperCase()
+                          : "W"}
                       </div>
                       {!isCollapsed && (
                         <span className="font-medium text-[15px] text-sidebar-foreground">
-                          {workspaces[0]?.name ?? "mychannel"}
+                          {currentWorkspace?.name ?? (isLoadingWorkspaces ? "Loading..." : "No workspace")}
                         </span>
                       )}
                     </button>
@@ -240,11 +244,18 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                     <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {workspaces.map((ws) => (
-                      <DropdownMenuItem key={ws.id}>
+                      <DropdownMenuItem
+                        key={ws.publicId}
+                        onClick={() => setCurrentWorkspace(ws)}
+                        className="cursor-pointer"
+                      >
                         <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
-                          {ws.initials}
+                          {ws.name.substring(0, 1).toUpperCase()}
                         </div>
                         <span className="flex-1">{ws.name}</span>
+                        {currentWorkspace?.publicId === ws.publicId && (
+                          <span className="ml-2 text-xs text-muted-foreground">✓</span>
+                        )}
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />

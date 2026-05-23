@@ -24,7 +24,7 @@ export function WorkspaceDialog({ open, onOpenChange }: WorkspaceDialogProps) {
         toast.success("Workspace created", { description: `"${ws.name}" has been created.` });
         setName("");
         onOpenChange(false);
-        router.push(`/workspaces/${ws.id}/boards`);
+        router.push(`/workspaces/${ws.publicId}/boards`);
       },
       onError: (err: any) => {
         const status = err?.response?.status;

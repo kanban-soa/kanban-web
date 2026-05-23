@@ -8,13 +8,16 @@ export async function listWorkspaces(): Promise<Workspace[]> {
 }
 
 export async function getWorkspace(id: string): Promise<Workspace> {
-  const { data } = await api.get<Workspace>(WORKSPACES.DETAIL(id));
-  return data;
+  const { data } = await api.get<{ data: Workspace } | Workspace>(WORKSPACES.DETAIL(id));
+  // Server wraps response: { success, data: Workspace, ... }
+  return "data" in data && data.data !== undefined
+    ? (data as { data: Workspace }).data
+    : (data as Workspace);
 }
 
 export async function createWorkspace(name: string): Promise<Workspace> {
-  const { data } = await api.post<Workspace>(WORKSPACES.CREATE, { name });
-  return data;
+  const { data } = await api.post<{ data: Workspace }>(WORKSPACES.CREATE, { name });
+  return data.data;
 }
 
 export async function getMember(workspaceId: string): Promise<MemberRequest[]> {
@@ -51,8 +54,10 @@ export async function removeMember(
   await api.delete(WORKSPACES.REMOVE_MEMBER(workspaceId, memberId));
 }
 
-export async function getInvitations(workspaceId: string): Promise<Invitation[]> {
-  const { data } = await api.get<Invitation[] | { data: Invitation[] }>(WORKSPACES.INVITATIONS(workspaceId));
+
+// Get all invitations for the current user
+export async function getInvitations(): Promise<Invitation[]> {
+  const { data } = await api.get<Invitation[] | { data: Invitation[] }>("/api/v1/workspaces/invitations");
   return Array.isArray(data) ? data : (data as any)?.data ?? [];
 }
 
@@ -61,4 +66,16 @@ export async function removeInvitation(
   invitationId: string,
 ): Promise<void> {
   await api.delete(WORKSPACES.REMOVE_INVITATION(workspaceId, invitationId));
+}
+
+
+// Accept invitation (user-scoped)
+export async function acceptInvitation(invitationId: string): Promise<void> {
+  await api.patch(`/api/v1/invitations/${invitationId}/accept`);
+}
+
+
+// Reject invitation (user-scoped)
+export async function cancelInvitation(invitationId: string): Promise<void> {
+  await api.patch(`/api/v1/invitations/${invitationId}/reject`);
 }

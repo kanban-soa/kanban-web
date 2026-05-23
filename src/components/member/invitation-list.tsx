@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useRemoveInvitation } from "@/hooks/use-workspaces";
 import type { Invitation } from "@/lib/api/types";
 import { toast } from "sonner";
+import { WorkspaceRole } from "@/lib/api/types";
 
 interface InvitationListProps {
   invitations?: Invitation[];
@@ -91,9 +92,9 @@ export function InvitationList({
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <Badge
                     variant={
-                      invitation.role === "owner"
+                      invitation.role == WorkspaceRole.OWNER
                         ? "default"
-                        : invitation.role === "member"
+                        : invitation.role === WorkspaceRole.MEMBER
                           ? "secondary"
                           : "outline"
                     }

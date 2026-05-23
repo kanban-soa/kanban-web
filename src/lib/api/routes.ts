@@ -15,6 +15,7 @@ export const AUTH = {
 // ── Workspaces ──────────────────────────────────────────────────────────────
 export const WORKSPACES = {
   LIST: "/api/v1/workspaces",
+  DEFAULT: "/api/v1/workspaces/default",
   CREATE: "/api/v1/workspaces",
   DETAIL: (id: string) => `/api/v1/workspaces/${id}`,
   MEMBERS: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/members`,
@@ -27,8 +28,10 @@ export const WORKSPACES = {
 
 // ── Boards ──────────────────────────────────────────────────────────────────
 export const BOARDS = {
-  LIST: "/api/v1/boards",
-  CREATE: "/api/v1/boards",
+  LIST: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/boards`,
+  CREATE: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/boards`,
+  DELETE: (workspaceId: string, boardId: string) =>
+    `/api/v1/workspaces/${workspaceId}/boards/${boardId}`,
 } as const;
 
 // ── Notifications ───────────────────────────────────────────────────────────
