@@ -12,12 +12,12 @@ import { useBoards, useCreateBoard, useDeleteBoard } from "@/hooks/use-board";
 import { useWorkspace } from "@/hooks/use-workspaces";
 
 // ── Inner component — only rendered when currentWorkspace is truthy ───────────
-function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId: string; workspaceName: string }) {
+function BoardsContent({ workspaceId, workspaceName }: { workspaceId: string; workspaceName: string }) {
   const router = useRouter();
 
-  const { data: boards = [], isLoading } = useBoards(workspacePublicId);
-  const createBoardMutation = useCreateBoard(workspacePublicId);
-  const deleteBoardMutation = useDeleteBoard(workspacePublicId);
+  const { data: boards = [], isLoading } = useBoards(workspaceId);
+  const createBoardMutation = useCreateBoard(workspaceId);
+  const deleteBoardMutation = useDeleteBoard(workspaceId);
 
   const [title, setTitle] = React.useState("");
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
@@ -62,11 +62,11 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
                 key={b.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => router.push(`/workspaces/${workspacePublicId}/boards/${b.id}`)}
+                onClick={() => router.push(`/workspaces/${workspaceId}/boards/${b.id}`)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    router.push(`/workspaces/${workspacePublicId}/boards/${b.id}`);
+                    router.push(`/workspaces/${workspaceId}/boards/${b.id}`);
                   }
                 }}
                 className="group relative mr-5 flex h-[150px] w-full items-center justify-center rounded-md border border-dashed border-light-400 shadow-sm cursor-pointer"
@@ -118,7 +118,7 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
                         onSuccess: (board) => {
                           setTitle("");
                           setIsCreateOpen(false);
-                          router.push(`/workspaces/${workspacePublicId}/boards/${board.id}`);
+                          router.push(`/workspaces/${workspaceId}/boards/${board.id}`);
                         },
                       },
                     );
@@ -139,7 +139,7 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
                         onSuccess: (board) => {
                           setTitle("");
                           setIsCreateOpen(false);
-                          router.push(`/workspaces/${workspacePublicId}/boards/${board.id}`);
+                          router.push(`/workspaces/${workspaceId}/boards/${board.id}`);
                         },
                       },
                     )
@@ -239,7 +239,7 @@ export default function BoardsPage() {
   // Has workspace → fetch and render boards
   return (
     <BoardsContent
-      workspacePublicId={fetchedWorkspace.publicId}
+      workspaceId={String(fetchedWorkspace.id)}
       workspaceName={fetchedWorkspace.name}
     />
   );
