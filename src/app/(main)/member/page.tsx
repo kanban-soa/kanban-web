@@ -8,37 +8,32 @@ import { InvitationList } from "@/components/member/invitation-list";
 import { InviteMemberDialog } from "@/components/member/invite-member-dialog";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
-import { useWorkspaces, useMember, useInvitations } from "@/hooks/use-workspaces";
+import { useMember, useInvitations } from "@/hooks/use-workspaces";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useWorkspaceContext } from "@/contexts/workspace.context";
 
 export default function MemberPage() {
   const [isInviteOpen, setIsInviteOpen] = React.useState(false);
   const [isWorkspaceSwitchOpen, setIsWorkspaceSwitchOpen] = React.useState(false);
-  const [currentWorkspaceId, setCurrentWorkspaceId] = React.useState("");
 
-  const { data: workspaces, isLoading } = useWorkspaces();
-  const { data: memberData } = useMember(currentWorkspaceId ?? workspaces?.[0]?.id ?? "");
+  const { currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces } =
+    useWorkspaceContext();
+
+  const { data: memberData } = useMember(currentWorkspace?.publicId ?? "");
   const { data: invitationsData } = useInvitations();
-
-  // Set initial workspace once loaded
-  React.useEffect(() => {
-    if (workspaces && workspaces.length > 0 && !currentWorkspaceId) {
-      setCurrentWorkspaceId(workspaces[0].id);
-    }
-  }, [workspaces, currentWorkspaceId]);
-
-  const currentWorkspace = workspaces?.find((ws) => ws.id === currentWorkspaceId) ?? workspaces?.[0];
 
   const handleSwitchWorkspace = () => {
     setIsWorkspaceSwitchOpen(true);
   };
 
-  const handleConfirmWorkspaceSwitch = (workspaceId: string) => {
-    setCurrentWorkspaceId(workspaceId);
+  const handleConfirmWorkspaceSwitch = (workspacePublicId: string) => {
+    const ws = workspaces.find((w) => w.publicId === workspacePublicId);
+    if (ws) setCurrentWorkspace(ws);
     setIsWorkspaceSwitchOpen(false);
   };
 
-  if (isLoading) {
+
+  if (isLoadingWorkspaces) {
     return (
       <div className="p-8 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -113,7 +108,7 @@ export default function MemberPage() {
             <h2 className="text-lg font-semibold text-white mb-4">
               Active Members
             </h2>
-            <MembersTable members={memberData} workspaceId={currentWorkspaceId}/>
+            <MembersTable members={memberData} workspaceId={currentWorkspace?.publicId ?? ""}/>
           </div>
 
           {/* Pending Invitations */}
@@ -121,14 +116,14 @@ export default function MemberPage() {
             <h2 className="text-lg font-semibold text-white mb-4">
               Invitations
             </h2>
-            <InvitationList invitations={invitationsData} workspaceId={currentWorkspaceId} />
+            <InvitationList invitations={invitationsData} workspaceId={currentWorkspace?.publicId ?? ""} />
           </div>
         </div>
       </div>
 
       {/* Invite Member Dialog */}
       <InviteMemberDialog
-        workspaceId={currentWorkspaceId}
+        workspaceId={currentWorkspace?.publicId ?? ""}
         workspaceName={currentWorkspace?.name ?? ""}
         open={isInviteOpen}
         onOpenChange={setIsInviteOpen}
@@ -153,10 +148,10 @@ export default function MemberPage() {
             <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
               {workspaces.map((ws) => (
                 <button
-                  key={ws.id}
-                  onClick={() => handleConfirmWorkspaceSwitch(ws.id)}
+                  key={ws.publicId}
+                  onClick={() => handleConfirmWorkspaceSwitch(ws.publicId)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                    currentWorkspaceId === ws.id
+                    currentWorkspace?.publicId === ws.publicId
                       ? "bg-gray-900 border-gray-700 text-white"
                       : "bg-muted-800 border-muted-700 text-muted-300 hover:bg-muted-700 hover:border-gray-600"
                   }`}
@@ -164,7 +159,7 @@ export default function MemberPage() {
                   <div className="text-left">
                     <p className="font-medium">{ws.name}</p>
                   </div>
-                  {currentWorkspaceId === ws.id && (
+                  {currentWorkspace?.publicId === ws.publicId && (
                     <span className="text-gray-400 text-sm font-semibold">Active</span>
                   )}
                 </button>

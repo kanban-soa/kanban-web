@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MoreVertical, LogOut, Shield } from "lucide-react";
-import type { MemberRequest, WorkspaceRole } from "@/lib/api/types";
+import type { MemberRequest } from "@/lib/api/types";
+import { WorkspaceRole } from "@/lib/api/types";
 import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -17,8 +18,6 @@ interface MembersTableProps {
   members?: MemberRequest[];
   workspaceId: string;
 }
-
-const workspaceRoles: WorkspaceRole[] = ["owner", "member", "observer"];
 
 function getInitials(name: string | undefined): string {
   if (!name) return "";
@@ -33,7 +32,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
   const [isDeactivateOpen, setIsDeactivateOpen] = React.useState(false);
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = React.useState(false);
   const [selectedMember, setSelectedMember] = React.useState<MemberRequest | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<WorkspaceRole>("member");
+  const [selectedRole, setSelectedRole] = React.useState<WorkspaceRole>(WorkspaceRole.MEMBER);
 
   const removeMemberMutation = useRemoveMember(workspaceId);
   const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.userId ?? ""));
@@ -166,9 +165,9 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
             <div className="flex items-center">
               <Badge
                 variant={
-                  member.role === "Owner"
+                  member.role === WorkspaceRole.OWNER
                     ? "default"
-                    : member.role === "Member"
+                    : member.role === WorkspaceRole.MEMBER
                       ? "secondary"
                       : "outline"
                 }
@@ -230,7 +229,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
       <RoleSwitchModal
         open={isRoleSwitchOpen}
         member={selectedMember}
-        roles={workspaceRoles}
+        roles={[] as WorkspaceRole[]}
         selectedRole={selectedRole}
         onChangeRole={(r) => setSelectedRole(r)}
         onClose={() => setIsRoleSwitchOpen(false)}
