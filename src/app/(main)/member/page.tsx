@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { WorkspaceCard } from "@/components/member/workspace-card";
 import { InsightCard } from "@/components/member/insight-card";
 import { MembersTable } from "@/components/member/members-table";
@@ -13,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
 
 export default function MemberPage() {
+  const router = useRouter();
   const [isInviteOpen, setIsInviteOpen] = React.useState(false);
   const [isWorkspaceSwitchOpen, setIsWorkspaceSwitchOpen] = React.useState(false);
 
@@ -28,7 +30,10 @@ export default function MemberPage() {
 
   const handleConfirmWorkspaceSwitch = (workspacePublicId: string) => {
     const ws = workspaces.find((w) => w.publicId === workspacePublicId);
-    if (ws) setCurrentWorkspace(ws);
+    if (ws) {
+      setCurrentWorkspace(ws);
+      router.push(`/workspaces/${ws.publicId}/boards`);
+    }
     setIsWorkspaceSwitchOpen(false);
   };
 
@@ -150,17 +155,17 @@ export default function MemberPage() {
                 <button
                   key={ws.publicId}
                   onClick={() => handleConfirmWorkspaceSwitch(ws.publicId)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg border transition-colors ${
                     currentWorkspace?.publicId === ws.publicId
                       ? "bg-gray-900 border-gray-700 text-white"
                       : "bg-muted-800 border-muted-700 text-muted-300 hover:bg-muted-700 hover:border-gray-600"
                   }`}
                 >
-                  <div className="text-left">
-                    <p className="font-medium">{ws.name}</p>
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="truncate font-medium" title={ws.name}>{ws.name}</p>
                   </div>
                   {currentWorkspace?.publicId === ws.publicId && (
-                    <span className="text-gray-400 text-sm font-semibold">Active</span>
+                    <span className="shrink-0 text-gray-400 text-sm font-semibold">Active</span>
                   )}
                 </button>
               ))}

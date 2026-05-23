@@ -10,12 +10,13 @@ import {
   Search,
   MoreHorizontal,
   LogOut,
-  Plus,
   ChartColumnIncreasing,
   Zap,
   MoonStar,
   SunMedium,
   MailIcon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import {
@@ -45,15 +46,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
@@ -67,11 +60,6 @@ const navItems = [
   { title: "Invitation", icon: MailIcon, href: "/invitations" },
 ];
 
-
-type CreateWorkspaceForm = {
-  name: string;
-  description: string;
-};
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   children?: React.ReactNode;
@@ -105,15 +93,23 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  const [createOpen, setCreateOpen] = React.useState(false);
-  const [createForm, setCreateForm] = React.useState<CreateWorkspaceForm>({
-    name: "",
-    description: "",
-  });
-  const [isCreating, setIsCreating] = React.useState(false);
-
   const { currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces } =
     useWorkspaceContext();
+
+  const WORKSPACES_PER_PAGE = 5;
+  const [workspacePage, setWorkspacePage] = React.useState(0);
+  const totalPages = Math.max(1, Math.ceil(workspaces.length / WORKSPACES_PER_PAGE));
+
+  React.useEffect(() => {
+    if (workspacePage >= totalPages) {
+      setWorkspacePage(Math.max(0, totalPages - 1));
+    }
+  }, [workspacePage, totalPages]);
+
+  const paginatedWorkspaces = workspaces.slice(
+    workspacePage * WORKSPACES_PER_PAGE,
+    (workspacePage + 1) * WORKSPACES_PER_PAGE,
+  );
 
   const [user, setUser] = React.useState<{name?: string, email?: string} | null>(null);
 
@@ -171,16 +167,6 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
     }
   };
 
-  const handleCreateWorkspace = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createForm.name.trim()) return;
-
-    setIsCreating(true);
-    setCreateOpen(false);
-    setCreateForm({ name: "", description: "" });
-    setIsCreating(false);
-  };
-
   return (
     <ThemeProvider>
       <div className="flex h-screen w-full">
@@ -220,8 +206,8 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className={`flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/50 transition-colors ${
-                        isCollapsed ? "justify-center px-0" : ""
+                      className={`flex min-w-0 items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/50 transition-colors ${
+                        isCollapsed ? "justify-center px-0" : "flex-1"
                       }`}
                     >
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs">
@@ -230,7 +216,10 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                           : "W"}
                       </div>
                       {!isCollapsed && (
-                        <span className="font-medium text-[15px] text-sidebar-foreground">
+                        <span
+                          className="min-w-0 flex-1 truncate text-left font-medium text-[15px] text-sidebar-foreground"
+                          title={currentWorkspace?.name}
+                        >
                           {currentWorkspace?.name ?? (isLoadingWorkspaces ? "Loading..." : "No workspace")}
                         </span>
                       )}
@@ -243,10 +232,13 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                   >
                     <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {workspaces.map((ws) => (
+                    {paginatedWorkspaces.map((ws) => (
                       <DropdownMenuItem
                         key={ws.publicId}
-                        onClick={() => setCurrentWorkspace(ws)}
+                        onClick={() => {
+                          setCurrentWorkspace(ws);
+                          router.push(`/workspaces/${ws.publicId}/boards`);
+                        }}
                         className="cursor-pointer"
                       >
                         <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
@@ -259,20 +251,44 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-muted-foreground cursor-pointer"
-                      onClick={() => setCreateOpen(true)}
-                    >
-                      <Plus className="size-4 mr-2" />
-                      Create Workspace
-                    </DropdownMenuItem>
+                    <div className="flex items-center justify-between px-2 py-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setWorkspacePage((p) => Math.max(0, p - 1));
+                        }}
+                        disabled={workspacePage === 0}
+                        className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="size-4" />
+                      </button>
+                      <span className="text-xs text-muted-foreground">
+                        {workspacePage + 1} / {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setWorkspacePage((p) => Math.min(totalPages - 1, p + 1));
+                        }}
+                        disabled={workspacePage >= totalPages - 1}
+                        className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="size-4" />
+                      </button>
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
                 {!isCollapsed && (
                   <Popover open={searchOpen} onOpenChange={setSearchOpen}>
                     <PopoverTrigger asChild>
-                      <button className="inline-flex size-9 items-center justify-center rounded-md border border-sidebar-border bg-sidebar hover:bg-sidebar-accent/50">
+                      <button className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-sidebar hover:bg-sidebar-accent/50">
                         <Search className="size-4 text-sidebar-foreground/70" />
                       </button>
                     </PopoverTrigger>
@@ -388,69 +404,6 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
           <SidebarRail />
         </Sidebar>
         <div className="flex-1 overflow-auto">{children}</div>
-
-        <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>Create Workspace</SheetTitle>
-              <SheetDescription>
-                Create a new workspace to organize your boards and collaborate
-                with team members.
-              </SheetDescription>
-            </SheetHeader>
-            <form onSubmit={handleCreateWorkspace} className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <label
-                  htmlFor="workspace-name"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Workspace Name
-                </label>
-                <Input
-                  id="workspace-name"
-                  placeholder="Enter workspace name"
-                  value={createForm.name}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label
-                  htmlFor="workspace-description"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Description (optional)
-                </label>
-                <Input
-                  id="workspace-description"
-                  placeholder="Enter description"
-                  value={createForm.description}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCreateOpen(false)}
-                  disabled={isCreating}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isCreating || !createForm.name.trim()}>
-                  {isCreating ? "Creating..." : "Create Workspace"}
-                </Button>
-              </div>
-            </form>
-          </SheetContent>
-        </Sheet>
       </div>
     </ThemeProvider>
   );
