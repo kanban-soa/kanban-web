@@ -20,6 +20,29 @@ export async function createWorkspace(name: string): Promise<Workspace> {
   return data.data;
 }
 
+export interface UpdateWorkspaceRequest {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+}
+
+export async function updateWorkspace(
+  id: string,
+  payload: UpdateWorkspaceRequest,
+): Promise<Workspace> {
+  const { data } = await api.patch<{ data: Workspace } | Workspace>(
+    WORKSPACES.UPDATE(id),
+    payload,
+  );
+  return "data" in data && (data as { data: Workspace }).data !== undefined
+    ? (data as { data: Workspace }).data
+    : (data as Workspace);
+}
+
+export async function deleteWorkspace(id: string): Promise<void> {
+  await api.delete(WORKSPACES.DELETE(id));
+}
+
 export async function getMember(workspaceId: string): Promise<MemberRequest[]> {
   const { data } = await api.get<any>(WORKSPACES.MEMBERS(workspaceId));
   
