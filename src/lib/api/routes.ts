@@ -15,6 +15,7 @@ export const AUTH = {
 // ── Workspaces ──────────────────────────────────────────────────────────────
 export const WORKSPACES = {
   LIST: "/api/v1/workspaces",
+  DEFAULT: "/api/v1/workspaces/default",
   CREATE: "/api/v1/workspaces",
   DETAIL: (id: string) => `/api/v1/workspaces/${id}`,
   MEMBERS: (workspaceId: string) => `/api/v1/workspaces/${workspaceId}/members`,
