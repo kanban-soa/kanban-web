@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Plus, Trash2, LayoutGrid } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
 import { useBoards, useCreateBoard, useDeleteBoard } from "@/hooks/use-board";
+import { useWorkspace } from "@/hooks/use-workspaces";
 
 // ── Inner component — only rendered when currentWorkspace is truthy ───────────
 function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId: string; workspaceName: string }) {
@@ -191,10 +192,24 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
 
 // ── Page entry point — guards on currentWorkspace ────────────────────────────
 export default function BoardsPage() {
-  const { currentWorkspace, isLoadingWorkspaces } = useWorkspaceContext();
+  const params = useParams<{ workspaceId: string }>();
+  const urlWorkspaceId = params.workspaceId; // numeric id from URL
+
+  const { currentWorkspace, setCurrentWorkspace } = useWorkspaceContext();
+
+  // Query server for the workspace matching the URL id
+  const { data: fetchedWorkspace, isLoading: isWorkspaceLoading } =
+    useWorkspace(urlWorkspaceId);
+
+  // Sync server result → context
+  React.useEffect(() => {
+    if (fetchedWorkspace) {
+      setCurrentWorkspace(fetchedWorkspace);
+    }
+  }, [fetchedWorkspace]);
 
   // Loading state
-  if (isLoadingWorkspaces) {
+  if (isWorkspaceLoading) {
     return (
       <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -206,15 +221,15 @@ export default function BoardsPage() {
     );
   }
 
-  // No workspace selected
-  if (!currentWorkspace) {
+  // Workspace not found on server
+  if (!fetchedWorkspace) {
     return (
       <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
         <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed p-16 text-center">
           <LayoutGrid className="size-10 text-muted-foreground/50" />
-          <div className="text-lg font-semibold">No workspace selected</div>
+          <div className="text-lg font-semibold">Workspace not found</div>
           <p className="text-sm text-muted-foreground">
-            Select or create a workspace from the sidebar to view its boards.
+            The workspace you are looking for does not exist or you do not have access.
           </p>
         </div>
       </div>
@@ -224,8 +239,8 @@ export default function BoardsPage() {
   // Has workspace → fetch and render boards
   return (
     <BoardsContent
-      workspacePublicId={currentWorkspace.publicId}
-      workspaceName={currentWorkspace.name}
+      workspacePublicId={fetchedWorkspace.publicId}
+      workspaceName={fetchedWorkspace.name}
     />
   );
 }

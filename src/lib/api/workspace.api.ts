@@ -8,8 +8,11 @@ export async function listWorkspaces(): Promise<Workspace[]> {
 }
 
 export async function getWorkspace(id: string): Promise<Workspace> {
-  const { data } = await api.get<Workspace>(WORKSPACES.DETAIL(id));
-  return data;
+  const { data } = await api.get<{ data: Workspace } | Workspace>(WORKSPACES.DETAIL(id));
+  // Server wraps response: { success, data: Workspace, ... }
+  return "data" in data && data.data !== undefined
+    ? (data as { data: Workspace }).data
+    : (data as Workspace);
 }
 
 export async function createWorkspace(name: string): Promise<Workspace> {
