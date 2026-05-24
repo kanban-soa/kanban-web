@@ -2,7 +2,24 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, CheckCircle2, Clock3, Download, PlusCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useWorkspaceContext } from "@/contexts/workspace.context";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Bell,
+  CheckCircle2,
+  Clock3,
+  Download,
+  PlusCircle,
+} from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -13,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useWorkspaces } from "@/hooks/use-workspaces";
 import {
   useStatisticsSummary,
   useWorkspaceActivities,
@@ -91,21 +107,36 @@ function ActivityItem({ activity }: { activity: Activity }) {
 }
 
 export default function StatisticPage() {
-  const { data: workspaces, isLoading: isWorkspaceLoading } = useWorkspaces();
-  const workspaceId = workspaces?.[0]?.id;
+  const {
+    currentWorkspace,
+    setCurrentWorkspace,
+    workspaces,
+    isLoadingWorkspaces,
+  } = useWorkspaceContext();
+
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = React.useState<string | undefined>(
+    currentWorkspace?.id
+  );
+
+  React.useEffect(() => {
+    if (currentWorkspace) {
+      setSelectedWorkspaceId(currentWorkspace.id);
+    }
+  }, [currentWorkspace]);
+
   const [isExporting, setIsExporting] = React.useState(false);
   const [exportFormat, setExportFormat] = React.useState<"csv" | "json">("csv");
   const {
     data: summary,
     isLoading: isStatsLoading,
     isError: isStatsError,
-  } = useStatisticsSummary(workspaceId, range);
+  } = useStatisticsSummary(selectedWorkspaceId, range);
   const { data: activitiesData, isLoading: isActivitiesLoading } =
-    useWorkspaceActivities(workspaceId, {
+    useWorkspaceActivities(selectedWorkspaceId, {
       limit: 5,
     });
 
-  const isLoading = isWorkspaceLoading || isStatsLoading || isActivitiesLoading;
+  const isLoading = isLoadingWorkspaces || isStatsLoading || isActivitiesLoading;
   const numberFormatter = React.useMemo(() => new Intl.NumberFormat(), []);
   const percentFormatter = React.useMemo(
     () => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }),
@@ -121,7 +152,26 @@ export default function StatisticPage() {
     [priorities],
   );
 
-  if (!isWorkspaceLoading && (!workspaces || workspaces.length === 0)) {
+  const WORKSPACES_PER_PAGE = 5;
+  const [workspacePage, setWorkspacePage] = React.useState(0);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(workspaces.length / WORKSPACES_PER_PAGE),
+  );
+
+  React.useEffect(() => {
+    if (workspacePage >= totalPages) {
+      setWorkspacePage(Math.max(0, totalPages - 1));
+    }
+  }, [workspacePage, totalPages]);
+
+  const paginatedWorkspaces = workspaces.slice(
+    workspacePage * WORKSPACES_PER_PAGE,
+    (workspacePage + 1) * WORKSPACES_PER_PAGE,
+  );
+
+
+  if (isLoadingWorkspaces && (!workspaces || workspaces.length === 0)) {
     return (
       <main className="min-h-screen bg-background p-8">
         <div className="mx-auto max-w-4xl">
@@ -172,11 +222,11 @@ export default function StatisticPage() {
     value === undefined || Number.isNaN(value) ? "—" : `${percentFormatter.format(value)}%`;
 
   const handleExport = async () => {
-    if (!workspaceId || isExporting) return;
+    if (!selectedWorkspaceId || isExporting) return;
     setIsExporting(true);
     try {
-      const { blob, contentType } = await exportStatistics(workspaceId, range, exportFormat);
-      const fileName = `statistics-${workspaceId}-${range}.${exportFormat}`;
+      const { blob, contentType } = await exportStatistics(selectedWorkspaceId, range, exportFormat);
+      const fileName = `statistics-${selectedWorkspaceId}-${range}.${exportFormat}`;
       const downloadBlob = contentType ? new Blob([blob], { type: contentType }) : blob;
       const url = window.URL.createObjectURL(downloadBlob);
       const link = document.createElement("a");
@@ -202,6 +252,75 @@ export default function StatisticPage() {
             <p className="text-sm text-muted-foreground">Overview for the last 30 days</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-48">
+                  {currentWorkspace?.name ?? "Select a workspace"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="right"
+                align="start"
+                className="w-56"
+              >
+                <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {paginatedWorkspaces.map((ws) => (
+                  <DropdownMenuItem
+                    key={ws.publicId}
+                    onClick={() => {
+                      setCurrentWorkspace(ws);
+                      setSelectedWorkspaceId(ws.id);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
+                      {ws.name.substring(0, 1).toUpperCase()}
+                    </div>
+                    <span className="flex-1">{ws.name}</span>
+                    {currentWorkspace?.publicId === ws.publicId && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ✓
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <div className="flex items-center justify-between px-2 py-1.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setWorkspacePage((p) => Math.max(0, p - 1));
+                    }}
+                    disabled={workspacePage === 0}
+                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    {workspacePage + 1} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setWorkspacePage((p) =>
+                        Math.min(totalPages - 1, p + 1),
+                      );
+                    }}
+                    disabled={workspacePage >= totalPages - 1}
+                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
               <Button asChild size="sm" variant="secondary">
                 <Link href="/statistic">Team</Link>
@@ -213,7 +332,7 @@ export default function StatisticPage() {
             <Select
               value={exportFormat}
               onValueChange={(value) => setExportFormat(value as "csv" | "json")}
-              disabled={!workspaceId || isLoading || isExporting}
+              disabled={!selectedWorkspaceId || isLoading || isExporting}
             >
               <SelectTrigger className="h-9 w-[110px]">
                 <SelectValue placeholder="Format" />
@@ -226,7 +345,7 @@ export default function StatisticPage() {
             <Button
               variant="outline"
               onClick={handleExport}
-              disabled={!workspaceId || isLoading || isExporting}
+              disabled={!selectedWorkspaceId || isLoading || isExporting}
             >
               <Download className="size-4" />
               {isExporting ? "Exporting..." : "Export"}
