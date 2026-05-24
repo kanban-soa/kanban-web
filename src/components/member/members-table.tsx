@@ -1,21 +1,21 @@
 "use client";
 
 import React from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MoreVertical, LogOut, Shield } from "lucide-react";
-import type { MemberRequest } from "@/lib/api/types";
+import { MoreVertical, LogOut, Shield, Reply } from "lucide-react";
+import type { MemberRequest, User, Workspace } from "@/lib/api/types";
 import { WorkspaceRole } from "@/lib/api/types";
 import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
-import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import RoleSwitchModal from "@/components/member/role-switch-modal";
 import RemoveMemberModal from "@/components/member/remove-member-modal";
 
 
 interface MembersTableProps {
-  members?: MemberRequest[];
+  members: MemberRequest[];
   workspaceId: string;
 }
 
@@ -29,13 +29,25 @@ function getInitials(name: string | undefined): string {
 }
 
 export function MembersTable({ members, workspaceId }: MembersTableProps) {
-  const [isDeactivateOpen, setIsDeactivateOpen] = React.useState(false);
-  const [isRoleSwitchOpen, setIsRoleSwitchOpen] = React.useState(false);
-  const [selectedMember, setSelectedMember] = React.useState<MemberRequest | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<WorkspaceRole>(WorkspaceRole.MEMBER);
+  const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
+  const [isRoleSwitchOpen, setIsRoleSwitchOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberRequest | null>(null);
+  const [selectedRole, setSelectedRole] = useState<WorkspaceRole>(WorkspaceRole.MEMBER);
 
   const removeMemberMutation = useRemoveMember(workspaceId);
   const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.userId ?? ""));
+
+  const user: User = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user") as string) : null;
+
+  const isAdminOfWorkspace = (members.find((m) => m.userId === user.id)?.role === WorkspaceRole.ADMIN) || false;
+
+  // Check user if not found or invalid, navigate to login page
+  if (!user) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    return null;
+  }
 
   const handleDeactivate = (member: MemberRequest) => {
     setSelectedMember(member);
@@ -165,7 +177,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
             <div className="flex items-center">
               <Badge
                 variant={
-                  member.role === WorkspaceRole.OWNER
+                  member.role === WorkspaceRole.ADMIN
                     ? "default"
                     : member.role === WorkspaceRole.MEMBER
                       ? "secondary"
@@ -194,26 +206,32 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleRoleSwitch(member)}
-                className="h-8 px-2 text-xs gap-1"
-                title="Change role"
-              >
-                <Shield className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Role</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeactivate(member)}
-                className="h-8 px-2 text-xs gap-1 hover:bg-red-950 hover:border-red-700"
-                title="Deactivate member"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Remove</span>
-              </Button>
+              {/* Show Role button if user is admin or changing own role */}
+              {isAdminOfWorkspace && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRoleSwitch(member)}
+                  className="h-8 px-2 text-xs gap-1"
+                  title="Change role"
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Role</span>
+                </Button>
+              )}
+              {/* Show Leave button if user is admin or it's their own row */}
+              {(isAdminOfWorkspace || user?.id === member.userId) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeactivate(member)}
+                  className="h-8 px-2 text-xs gap-1 hover:bg-red-950 hover:border-red-700"
+                  title="Remove member"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Leave</span>
+                </Button>
+              )}
             </div>
           </div>
         ))}

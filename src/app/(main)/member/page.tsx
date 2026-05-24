@@ -95,7 +95,9 @@ export default function MemberPage() {
             <h2 className="text-lg font-semibold text-white mb-4">
               Active Members
             </h2>
-            <MembersTable members={memberData} workspaceId={currentWorkspace?.publicId ?? ""}/>
+            {memberData && currentWorkspace && (
+              <MembersTable members={memberData} workspaceId={currentWorkspace?.publicId ?? ""} />
+            )}
           </div>
 
           {/* Pending Invitations */}

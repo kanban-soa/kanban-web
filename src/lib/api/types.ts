@@ -4,9 +4,7 @@
 
 export enum WorkspaceRole {
   ADMIN = "admin",
-  MEMBER = "member",
-  OWNER = "owner",
-  OBSERVER = "observer"
+  MEMBER = "member"
 }
 
 export enum MemberStatus {
@@ -14,6 +12,18 @@ export enum MemberStatus {
   INVITED = "invited",
   REMOVED = "removed",
   CANCELLED = "cancelled"
+}
+
+export interface User {
+  id: string;
+  publicId: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  image: string | null;
+  role: WorkspaceRole;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Workspace {
