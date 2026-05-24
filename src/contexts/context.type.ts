@@ -22,5 +22,6 @@ export interface WorkspaceContextType {
   currentWorkspace: Workspace | null;
   setCurrentWorkspace: (workspace: Workspace) => void;
   workspaces: Workspace[];
+  setWorkspaces: (workspaces: Workspace[]) => void;
   isLoadingWorkspaces: boolean;
 }

@@ -1,18 +1,18 @@
 "use client";
 
-import React, { use } from "react";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MoreVertical, LogOut, Shield, Reply } from "lucide-react";
-import type { MemberRequest, User, Workspace } from "@/lib/api/types";
+import { LogOut, Shield } from "lucide-react";
+import type { MemberRequest, User } from "@/lib/api/types";
 import { WorkspaceRole } from "@/lib/api/types";
 import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
 import { toast } from "sonner";
 import RoleSwitchModal from "@/components/member/role-switch-modal";
 import RemoveMemberModal from "@/components/member/remove-member-modal";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 interface MembersTableProps {
@@ -35,18 +35,28 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberRequest | null>(null);
   const [selectedRole, setSelectedRole] = useState<WorkspaceRole>(WorkspaceRole.MEMBER);
+  const [user, setUser] = useState<User | null>(null);
 
   const removeMemberMutation = useRemoveMember(workspaceId);
   const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.userId ?? ""));
-
-  const user: User = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user") as string) : null;
-
+  const queryClient = useQueryClient();
   const router = useRouter();
+
+  // Load user from localStorage on client side
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+        setUser(null);
+      }
+    }
+  }, []);
+
   // Check user if not found or invalid, navigate to login page
   if (!user) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
     return null;
   }
 
@@ -70,9 +80,15 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
           });
           setIsDeactivateOpen(false);
           setSelectedMember(null);
-          // If the user removed themselves, redirect to workspaces page
+          
+          // If the user removed themselves, invalidate workspaces and redirect
           if (user.id === selectedMember.userId) {
-            router.push("/workspaces/default/boards");
+            // Invalidate workspaces query to refresh the list
+            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+            // Redirect to workspaces after a short delay to allow toast to show
+            setTimeout(() => {
+              router.push("/workspaces");
+            }, 500);
           }
         },
         onError: (error: any) => {
