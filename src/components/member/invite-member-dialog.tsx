@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { use } from "react";
 import { Button } from "@/components/ui/button";
 import { useInviteMember } from "@/hooks/use-workspaces";
 import type { WorkspaceRole } from "@/lib/api/types";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface InviteMemberDialogProps {
@@ -19,7 +20,7 @@ export function InviteMemberDialog({
   open,
   onOpenChange,
 }: InviteMemberDialogProps) {
-  const [inviteEmail, setInviteEmail] = React.useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
   const inviteMutation = useInviteMember(workspaceId);
 
   const handleSendInvite = () => {
@@ -52,11 +53,6 @@ export function InviteMemberDialog({
             });
           }
           
-          // console.error("Invite error:", {
-          //   status,
-          //   message,
-          //   error,
-          // });
         },
       },
     );

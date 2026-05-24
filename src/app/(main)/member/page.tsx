@@ -14,23 +14,11 @@ import { useWorkspaceContext } from "@/contexts/workspace.context";
 
 export default function MemberPage() {
   const [isInviteOpen, setIsInviteOpen] = React.useState(false);
-  const [isWorkspaceSwitchOpen, setIsWorkspaceSwitchOpen] = React.useState(false);
 
   const { currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces } =
     useWorkspaceContext();
 
   const { data: memberData } = useMember(currentWorkspace?.publicId ?? "");
-  const { data: invitationsData } = useInvitations();
-
-  const handleSwitchWorkspace = () => {
-    setIsWorkspaceSwitchOpen(true);
-  };
-
-  const handleConfirmWorkspaceSwitch = (workspacePublicId: string) => {
-    const ws = workspaces.find((w) => w.publicId === workspacePublicId);
-    if (ws) setCurrentWorkspace(ws);
-    setIsWorkspaceSwitchOpen(false);
-  };
 
 
   if (isLoadingWorkspaces) {
@@ -71,7 +59,6 @@ export default function MemberPage() {
             initials={currentWorkspace?.name.split(" ").map((n) => n[0]).join("") ?? ""}
             title={currentWorkspace?.name ?? ""}
             description="Collaborate on design projects and brand assets with your team members."
-            onSwitchWorkspace={handleSwitchWorkspace}
           />
 
           <InsightCard
@@ -112,12 +99,12 @@ export default function MemberPage() {
           </div>
 
           {/* Pending Invitations */}
-          <div>
+          {/* <div>
             <h2 className="text-lg font-semibold text-white mb-4">
               Invitations
             </h2>
             <InvitationList invitations={invitationsData} workspaceId={currentWorkspace?.publicId ?? ""} />
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -128,56 +115,6 @@ export default function MemberPage() {
         open={isInviteOpen}
         onOpenChange={setIsInviteOpen}
       />
-
-      {/* Workspace Switch Modal */}
-      {isWorkspaceSwitchOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/20"
-            onClick={() => setIsWorkspaceSwitchOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
-          >
-            <div className="text-base font-semibold text-white">Switch Workspace</div>
-            <div className="mt-1 text-xs text-muted-400">
-              Select a workspace to manage members and settings
-            </div>
-            <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
-              {workspaces.map((ws) => (
-                <button
-                  key={ws.publicId}
-                  onClick={() => handleConfirmWorkspaceSwitch(ws.publicId)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                    currentWorkspace?.publicId === ws.publicId
-                      ? "bg-gray-900 border-gray-700 text-white"
-                      : "bg-muted-800 border-muted-700 text-muted-300 hover:bg-muted-700 hover:border-gray-600"
-                  }`}
-                >
-                  <div className="text-left">
-                    <p className="font-medium">{ws.name}</p>
-                  </div>
-                  {currentWorkspace?.publicId === ws.publicId && (
-                    <span className="text-gray-400 text-sm font-semibold">Active</span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-muted-700">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setIsWorkspaceSwitchOpen(false)}
-                className="bg-muted-600 border-muted-700 text-white hover:bg-gray-700"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

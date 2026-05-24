@@ -64,7 +64,6 @@ const navItems = [
   { title: "Statistic", icon: ChartColumnIncreasing, href: "/statistic" },
   { title: "Members", icon: UsersRound, href: "/member" },
   { title: "Settings", icon: Settings, href: "/settings" },
-  { title: "Invitation", icon: MailIcon, href: "/invitations" },
 ];
 
 
