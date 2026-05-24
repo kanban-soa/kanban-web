@@ -15,8 +15,8 @@ export async function getWorkspace(id: string): Promise<Workspace> {
     : (data as Workspace);
 }
 
-export async function createWorkspace(name: string): Promise<Workspace> {
-  const { data } = await api.post<{ data: Workspace }>(WORKSPACES.CREATE, { name });
+export async function createWorkspace(payload: { name: string; description?: string }): Promise<Workspace> {
+  const { data } = await api.post<{ data: Workspace }>(WORKSPACES.CREATE, payload);
   return data.data;
 }
 
