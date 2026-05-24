@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -14,10 +15,10 @@ import { toast } from "sonner";
 export default function WorkspacesPage() {
   const router = useRouter();
   const { data: workspaces, isLoading } = useWorkspaces();
-  const [inviteWorkspaceId, setInviteWorkspaceId] = React.useState("");
-  const [inviteWorkspaceName, setInviteWorkspaceName] = React.useState("");
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
-  const [workspaceName, setWorkspaceName] = React.useState("");
+  const [inviteWorkspaceId, setInviteWorkspaceId] = useState("");
+  const [inviteWorkspaceName, setInviteWorkspaceName] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  // const [workspaceName, setWorkspaceName] = useState("");
 
   const handleInvite = (e: React.MouseEvent, ws: { id: string; name: string }) => {
     e.stopPropagation();
@@ -58,7 +59,7 @@ export default function WorkspacesPage() {
             {workspaces.map((ws) => (
               <WorkspaceCard
                 key={ws.id}
-                id={ws.id}
+                id={ws.publicId}
                 name={ws.name}
                 members={ws.members}
                 onClick={(id) => router.push(`/workspaces/${id}/boards`)}
