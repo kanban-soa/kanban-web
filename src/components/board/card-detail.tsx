@@ -78,12 +78,12 @@ export function CardDetailPage({
 
   const updateCardMut = useUpdateCard(workspaceId, boardId);
   const deleteCardMut = useDeleteCard(workspaceId, boardId);
-  const attachLabelMut = useAttachLabelToCard();
-  const detachLabelMut = useDetachLabelFromCard();
+  const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
+  const detachLabelMut = useDetachLabelFromCard(workspaceId, boardId);
   const setDueDateMut = useSetCardDueDate();
   const clearDueDateMut = useClearCardDueDate();
-  const assignMemberMut = useAssignMemberToCard();
-  const removeMemberMut = useRemoveMemberFromCard();
+  const assignMemberMut = useAssignMemberToCard(workspaceId, boardId);
+  const removeMemberMut = useRemoveMemberFromCard(workspaceId, boardId);
 
   const lists: DisplayList[] = React.useMemo(
     () =>

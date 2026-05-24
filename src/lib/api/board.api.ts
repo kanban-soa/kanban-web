@@ -102,15 +102,40 @@ export async function deleteBoard(
 }
 
 // ── Lists ───────────────────────────────────────────────────────────────────
+type RawListWithCards = BoardList & { cards?: RawCard[] };
+
+async function fetchCardsForList(listId: string): Promise<Card[]> {
+  try {
+    const { data } = await api.get<RawCard[] | { data: RawCard[] }>(
+      LISTS.CARDS(listId),
+    );
+    const items = unwrap<RawCard[]>(data);
+    return Array.isArray(items) ? items.map(normalizeCard) : [];
+  } catch {
+    // Endpoint may not be exposed yet on the server — fall back to empty.
+    return [];
+  }
+}
+
 export async function listBoardLists(
   workspaceId: string,
   boardId: string,
-): Promise<BoardList[]> {
-  const { data } = await api.get<BoardList[] | { data: BoardList[] }>(
-    BOARDS.LISTS(workspaceId, boardId),
+): Promise<(BoardList & { cards: Card[] })[]> {
+  const { data } = await api.get<
+    RawListWithCards[] | { data: RawListWithCards[] }
+  >(BOARDS.LISTS(workspaceId, boardId));
+  const items = unwrap<RawListWithCards[]>(data);
+  if (!Array.isArray(items)) return [];
+
+  return Promise.all(
+    items.map(async (l) => {
+      const embedded = Array.isArray(l.cards) ? l.cards : null;
+      const cards = embedded
+        ? embedded.map(normalizeCard)
+        : await fetchCardsForList(String(l.id ?? l.publicId ?? ""));
+      return { ...l, cards };
+    }),
   );
-  const items = unwrap<BoardList[]>(data);
-  return Array.isArray(items) ? items : [];
 }
 
 export interface CreateListRequest {

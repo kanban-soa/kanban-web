@@ -90,7 +90,7 @@ export function useDeleteBoard(workspacePublicId: string) {
 
 // ── Lists ───────────────────────────────────────────────────────────────────
 export function useBoardLists(workspacePublicId: string, boardId: string) {
-  return useQuery<BoardList[]>({
+  return useQuery<(BoardList & { cards: Card[] })[]>({
     queryKey: ["boards", workspacePublicId, boardId, "lists"],
     queryFn: () => listBoardLists(workspacePublicId, boardId),
     enabled: !!workspacePublicId && !!boardId,
@@ -183,6 +183,8 @@ export function useCreateCard(
 
 export function useUpdateCard(workspacePublicId: string, boardId: string) {
   const queryClient = useQueryClient();
+  const listsKey = ["boards", workspacePublicId, boardId, "lists"] as const;
+
   return useMutation({
     mutationFn: ({
       cardId,
@@ -191,72 +193,203 @@ export function useUpdateCard(workspacePublicId: string, boardId: string) {
       cardId: string;
       payload: UpdateCardRequest;
     }) => updateCard(cardId, payload),
+    onMutate: async ({ cardId, payload }) => {
+      await queryClient.cancelQueries({ queryKey: listsKey });
+      const previous =
+        queryClient.getQueryData<(BoardList & { cards?: Card[] })[]>(listsKey);
+
+      queryClient.setQueryData<(BoardList & { cards?: Card[] })[]>(
+        listsKey,
+        (old) => {
+          if (!old) return old;
+          const cardMatches = (c: Card) =>
+            c.id === cardId || c.publicId === cardId;
+
+          // List-change: move the card between source and target list.
+          if (payload.targetListId !== undefined) {
+            let moving: Card | undefined;
+            const without = old.map((l) => {
+              const cards = l.cards ?? [];
+              const found = cards.find(cardMatches);
+              if (!found) return l;
+              moving = { ...found, listId: payload.targetListId! };
+              return { ...l, cards: cards.filter((c) => !cardMatches(c)) };
+            });
+            if (!moving) return old;
+            return without.map((l) => {
+              const matches =
+                l.id === payload.targetListId ||
+                l.publicId === payload.targetListId;
+              if (!matches) return l;
+              return { ...l, cards: [...(l.cards ?? []), moving!] };
+            });
+          }
+
+          // Field update: patch the card in-place.
+          return old.map((l) => ({
+            ...l,
+            cards: (l.cards ?? []).map((c) =>
+              cardMatches(c) ? { ...c, ...payload } : c,
+            ),
+          }));
+        },
+      );
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listsKey, context.previous);
+      }
+    },
     onSuccess: (_data, { cardId }) => {
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
-      queryClient.invalidateQueries({
-        queryKey: ["boards", workspacePublicId, boardId, "lists"],
-      });
     },
   });
 }
 
 export function useDeleteCard(workspacePublicId: string, boardId: string) {
   const queryClient = useQueryClient();
+  const listsKey = ["boards", workspacePublicId, boardId, "lists"] as const;
   return useMutation({
     mutationFn: (cardId: string) => deleteCard(cardId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["boards", workspacePublicId, boardId, "lists"],
-      });
+    onSuccess: (_d, cardId) => {
+      queryClient.setQueryData<(BoardList & { cards?: Card[] })[]>(
+        listsKey,
+        (old) => {
+          if (!old) return old;
+          return old.map((l) => ({
+            ...l,
+            cards: (l.cards ?? []).filter(
+              (c) => c.id !== cardId && c.publicId !== cardId,
+            ),
+          }));
+        },
+      );
     },
   });
 }
 
-export function useAttachLabelToCard() {
+function patchCardInLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  listsKey: readonly unknown[],
+  cardId: string,
+  patch: (c: Card) => Card,
+) {
+  queryClient.setQueryData<(BoardList & { cards?: Card[] })[]>(
+    listsKey,
+    (old) => {
+      if (!old) return old;
+      return old.map((l) => ({
+        ...l,
+        cards: (l.cards ?? []).map((c) =>
+          c.id === cardId || c.publicId === cardId ? patch(c) : c,
+        ),
+      }));
+    },
+  );
+}
+
+export function useAttachLabelToCard(
+  workspacePublicId: string,
+  boardId: string,
+) {
   const queryClient = useQueryClient();
+  const listsKey = ["boards", workspacePublicId, boardId, "lists"] as const;
+  const labelsKey = ["boards", boardId, "labels"] as const;
   return useMutation({
     mutationFn: ({ cardId, labelId }: { cardId: string; labelId: string }) =>
       attachLabelToCard(cardId, labelId),
-    onSuccess: (_d, { cardId }) => {
+    onSuccess: (_d, { cardId, labelId }) => {
+      const boardLabels =
+        queryClient.getQueryData<Label[]>(labelsKey) ?? [];
+      const label = boardLabels.find(
+        (l) => l.id === labelId || l.publicId === labelId,
+      );
+      patchCardInLists(queryClient, listsKey, cardId, (c) => {
+        const labels = c.labels ?? [];
+        if (labels.some((l) => l.id === labelId)) return c;
+        return label ? { ...c, labels: [...labels, label] } : c;
+      });
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
     },
   });
 }
 
-export function useDetachLabelFromCard() {
+export function useDetachLabelFromCard(
+  workspacePublicId: string,
+  boardId: string,
+) {
   const queryClient = useQueryClient();
+  const listsKey = ["boards", workspacePublicId, boardId, "lists"] as const;
   return useMutation({
     mutationFn: ({ cardId, labelId }: { cardId: string; labelId: string }) =>
       detachLabelFromCard(cardId, labelId),
-    onSuccess: (_d, { cardId }) => {
+    onSuccess: (_d, { cardId, labelId }) => {
+      patchCardInLists(queryClient, listsKey, cardId, (c) => ({
+        ...c,
+        labels: (c.labels ?? []).filter(
+          (l) => l.id !== labelId && l.publicId !== labelId,
+        ),
+      }));
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
     },
   });
 }
 
-export function useSetCardDueDate() {
+export function useSetCardDueDate(
+  workspacePublicId?: string,
+  boardId?: string,
+) {
   const queryClient = useQueryClient();
+  const listsKey =
+    workspacePublicId && boardId
+      ? (["boards", workspacePublicId, boardId, "lists"] as const)
+      : null;
   return useMutation({
     mutationFn: ({ cardId, dueDate }: { cardId: string; dueDate: string }) =>
       setCardDueDate(cardId, dueDate),
-    onSuccess: (_d, { cardId }) => {
+    onSuccess: (_d, { cardId, dueDate }) => {
+      if (listsKey) {
+        patchCardInLists(queryClient, listsKey, cardId, (c) => ({
+          ...c,
+          dueDate,
+        }));
+      }
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
     },
   });
 }
 
-export function useClearCardDueDate() {
+export function useClearCardDueDate(
+  workspacePublicId?: string,
+  boardId?: string,
+) {
   const queryClient = useQueryClient();
+  const listsKey =
+    workspacePublicId && boardId
+      ? (["boards", workspacePublicId, boardId, "lists"] as const)
+      : null;
   return useMutation({
     mutationFn: (cardId: string) => clearCardDueDate(cardId),
     onSuccess: (_d, cardId) => {
+      if (listsKey) {
+        patchCardInLists(queryClient, listsKey, cardId, (c) => ({
+          ...c,
+          dueDate: null,
+        }));
+      }
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
     },
   });
 }
 
-export function useAssignMemberToCard() {
+export function useAssignMemberToCard(
+  workspacePublicId: string,
+  boardId: string,
+) {
   const queryClient = useQueryClient();
+  const listsKey = ["boards", workspacePublicId, boardId, "lists"] as const;
   return useMutation({
     mutationFn: ({
       cardId,
@@ -265,18 +398,31 @@ export function useAssignMemberToCard() {
       cardId: string;
       workspaceMemberPublicId: string;
     }) => assignMemberToCard(cardId, workspaceMemberPublicId),
-    onSuccess: (_d, { cardId }) => {
+    onSuccess: (_d, { cardId, workspaceMemberPublicId }) => {
+      patchCardInLists(queryClient, listsKey, cardId, (c) => {
+        const members = c.members ?? [];
+        if (members.includes(workspaceMemberPublicId)) return c;
+        return { ...c, members: [...members, workspaceMemberPublicId] };
+      });
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
     },
   });
 }
 
-export function useRemoveMemberFromCard() {
+export function useRemoveMemberFromCard(
+  workspacePublicId: string,
+  boardId: string,
+) {
   const queryClient = useQueryClient();
+  const listsKey = ["boards", workspacePublicId, boardId, "lists"] as const;
   return useMutation({
     mutationFn: ({ cardId, memberId }: { cardId: string; memberId: string }) =>
       removeMemberFromCard(cardId, memberId),
-    onSuccess: (_d, { cardId }) => {
+    onSuccess: (_d, { cardId, memberId }) => {
+      patchCardInLists(queryClient, listsKey, cardId, (c) => ({
+        ...c,
+        members: (c.members ?? []).filter((m) => m !== memberId),
+      }));
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
     },
   });

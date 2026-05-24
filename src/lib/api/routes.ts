@@ -55,6 +55,7 @@ export const LISTS = {
   UPDATE: (listId: string) => `/api/v1/boards/lists/${listId}`,
   DELETE: (listId: string) => `/api/v1/boards/lists/${listId}`,
   CREATE_CARD: (listId: string) => `/api/v1/boards/lists/${listId}/cards`,
+  CARDS: (listId: string) => `/api/v1/boards/lists/${listId}/cards`,
 } as const;
 
 // ── Cards (board service) ───────────────────────────────────────────────────
