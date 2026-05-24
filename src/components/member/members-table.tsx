@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { use } from "react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,13 @@ import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
 import { toast } from "sonner";
 import RoleSwitchModal from "@/components/member/role-switch-modal";
 import RemoveMemberModal from "@/components/member/remove-member-modal";
+import { useRouter } from "next/navigation";
 
 
 interface MembersTableProps {
   members: MemberRequest[];
   workspaceId: string;
+  isAdminOfWorkspace: boolean;
 }
 
 function getInitials(name: string | undefined): string {
@@ -28,7 +30,7 @@ function getInitials(name: string | undefined): string {
     .toUpperCase();
 }
 
-export function MembersTable({ members, workspaceId }: MembersTableProps) {
+export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: MembersTableProps) {
   const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
   const [isRoleSwitchOpen, setIsRoleSwitchOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberRequest | null>(null);
@@ -39,8 +41,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
 
   const user: User = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user") as string) : null;
 
-  const isAdminOfWorkspace = (members.find((m) => m.userId === user.id)?.role === WorkspaceRole.ADMIN) || false;
-
+  const router = useRouter();
   // Check user if not found or invalid, navigate to login page
   if (!user) {
     if (typeof window !== "undefined") {
@@ -69,6 +70,10 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
           });
           setIsDeactivateOpen(false);
           setSelectedMember(null);
+          // If the user removed themselves, redirect to workspaces page
+          if (user.id === selectedMember.userId) {
+            router.push("/workspaces/default/boards");
+          }
         },
         onError: (error: any) => {
           const status = error?.response?.status;
@@ -247,7 +252,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
       <RoleSwitchModal
         open={isRoleSwitchOpen}
         member={selectedMember}
-        roles={[] as WorkspaceRole[]}
+        roles={Object.values(WorkspaceRole)}
         selectedRole={selectedRole}
         onChangeRole={(r) => setSelectedRole(r)}
         onClose={() => setIsRoleSwitchOpen(false)}

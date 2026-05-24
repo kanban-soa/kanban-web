@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useState, useEffect } from "react";
 import { WorkspaceCard } from "@/components/member/workspace-card";
 import { InsightCard } from "@/components/member/insight-card";
 import { MembersTable } from "@/components/member/members-table";
@@ -11,6 +12,8 @@ import { UserPlus } from "lucide-react";
 import { useMember, useInvitations } from "@/hooks/use-workspaces";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
+import { WorkspaceRole } from "@/lib/api/types";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function MemberPage() {
   const [isInviteOpen, setIsInviteOpen] = React.useState(false);
@@ -20,6 +23,8 @@ export default function MemberPage() {
 
   const { data: memberData } = useMember(currentWorkspace?.publicId ?? "");
 
+  const user = useAuth();
+  const isAdminOfWorkspace = (Array.isArray(memberData) && user && memberData.find((m) => m.userId === user.id)?.role === WorkspaceRole.ADMIN) || false;
 
   if (isLoadingWorkspaces) {
     return (
@@ -58,7 +63,7 @@ export default function MemberPage() {
           <WorkspaceCard
             initials={currentWorkspace?.name.split(" ").map((n) => n[0]).join("") ?? ""}
             title={currentWorkspace?.name ?? ""}
-            description="Collaborate on design projects and brand assets with your team members."
+            description={currentWorkspace?.description ?? "Insights and workspace details"}
           />
 
           <InsightCard
@@ -80,7 +85,8 @@ export default function MemberPage() {
                 Workspace settings and team collaboration
               </p>
             </div>
-            <Button
+            {isAdminOfWorkspace && (
+              <Button
               onClick={() => setIsInviteOpen(true)}
               size="lg"
               className="gap-2 w-full sm:w-auto"
@@ -88,6 +94,7 @@ export default function MemberPage() {
               <UserPlus className="h-4 w-4" />
               Invite Member
             </Button>
+            )}
           </div>
 
           {/* Members Table */}
@@ -96,7 +103,7 @@ export default function MemberPage() {
               Active Members
             </h2>
             {memberData && currentWorkspace && (
-              <MembersTable members={memberData} workspaceId={currentWorkspace?.publicId ?? ""} />
+              <MembersTable members={memberData} workspaceId={currentWorkspace?.publicId ?? ""} isAdminOfWorkspace={isAdminOfWorkspace} />
             )}
           </div>
 
