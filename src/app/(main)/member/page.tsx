@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { WorkspaceCard } from "@/components/member/workspace-card";
 import { InsightCard } from "@/components/member/insight-card";
 import { MembersTable } from "@/components/member/members-table";
-import { InvitationList } from "@/components/member/invitation-list";
 import { InviteMemberDialog } from "@/components/member/invite-member-dialog";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
@@ -16,7 +15,7 @@ import { WorkspaceRole } from "@/lib/api/types";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function MemberPage() {
-  const [isInviteOpen, setIsInviteOpen] = React.useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const { currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces } =
     useWorkspaceContext();
