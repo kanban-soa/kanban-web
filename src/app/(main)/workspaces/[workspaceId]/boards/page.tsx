@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Plus, Trash2, LayoutGrid } from "lucide-react";
 
@@ -202,7 +203,7 @@ export default function BoardsPage() {
     useWorkspace(urlWorkspaceId);
 
   // Sync server result → context
-  React.useEffect(() => {
+  useEffect(() => {
     if (fetchedWorkspace) {
       setCurrentWorkspace(fetchedWorkspace);
     }
