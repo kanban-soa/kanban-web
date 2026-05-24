@@ -50,6 +50,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
+import { logout as logoutApi } from "@/lib/api/auth.api";
 
 const navItems = [
   { title: "Workspaces", icon: Zap, href: "/workspaces" },
@@ -59,7 +60,6 @@ const navItems = [
   { title: "Settings", icon: Settings, href: "/settings" },
   { title: "Invitation", icon: MailIcon, href: "/invitations" },
 ];
-
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   children?: React.ReactNode;
@@ -93,12 +93,19 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
-  const { currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces } =
-    useWorkspaceContext();
+  const {
+    currentWorkspace,
+    setCurrentWorkspace,
+    workspaces,
+    isLoadingWorkspaces,
+  } = useWorkspaceContext();
 
   const WORKSPACES_PER_PAGE = 5;
   const [workspacePage, setWorkspacePage] = React.useState(0);
-  const totalPages = Math.max(1, Math.ceil(workspaces.length / WORKSPACES_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(workspaces.length / WORKSPACES_PER_PAGE),
+  );
 
   React.useEffect(() => {
     if (workspacePage >= totalPages) {
@@ -111,7 +118,10 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
     (workspacePage + 1) * WORKSPACES_PER_PAGE,
   );
 
-  const [user, setUser] = React.useState<{name?: string, email?: string} | null>(null);
+  const [user, setUser] = React.useState<{
+    name?: string;
+    email?: string;
+  } | null>(null);
 
   React.useEffect(() => {
     const fetchUser = () => {
@@ -147,21 +157,11 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
 
   const handleLogout = async () => {
     try {
-      // In a real app, you might want to read the token from cookies or local storage 
-      // if your logout API requires an Authorization header.
-      // Assuming cookies are sent automatically or it's a simple POST to invalidate session.
-      const response = await fetch("http://localhost:8080/api/v1/auth/logout", {
-        method: "POST",
-      });
-
-      if (response.ok) {
-        toast.success("Logged out successfully");
-      } else {
-        toast.error("Logout might have failed on server, proceeding anyway");
-      }
+      await logoutApi();
+      toast.success("Logged out successfully");
     } catch (error) {
       console.error("Logout API error:", error);
-      toast.error("Network error during logout");
+      toast.error("Logout might have failed on server, proceeding anyway");
     } finally {
       router.push("/login");
     }
@@ -220,7 +220,10 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                           className="min-w-0 flex-1 truncate text-left font-medium text-[15px] text-sidebar-foreground"
                           title={currentWorkspace?.name}
                         >
-                          {currentWorkspace?.name ?? (isLoadingWorkspaces ? "Loading..." : "No workspace")}
+                          {currentWorkspace?.name ??
+                            (isLoadingWorkspaces
+                              ? "Loading..."
+                              : "No workspace")}
                         </span>
                       )}
                     </button>
@@ -237,7 +240,6 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                         key={ws.publicId}
                         onClick={() => {
                           setCurrentWorkspace(ws);
-                          router.push(`/workspaces/${ws.publicId}/boards`);
                         }}
                         className="cursor-pointer"
                       >
@@ -246,7 +248,9 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                         </div>
                         <span className="flex-1">{ws.name}</span>
                         {currentWorkspace?.publicId === ws.publicId && (
-                          <span className="ml-2 text-xs text-muted-foreground">✓</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ✓
+                          </span>
                         )}
                       </DropdownMenuItem>
                     ))}
@@ -273,7 +277,9 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setWorkspacePage((p) => Math.min(totalPages - 1, p + 1));
+                          setWorkspacePage((p) =>
+                            Math.min(totalPages - 1, p + 1),
+                          );
                         }}
                         disabled={workspacePage >= totalPages - 1}
                         className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"

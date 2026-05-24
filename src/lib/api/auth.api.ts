@@ -40,7 +40,19 @@ export async function register({ email, password, name }: RegisterRequest): Prom
 }
 
 export async function logout() {
-  removeToken();
+  const refreshToken =
+    typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
+  try {
+    if (refreshToken) {
+      await api.post(AUTH.LOGOUT, { refreshToken });
+    }
+  } finally {
+    removeToken();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
+      localStorage.removeItem("refresh_token");
+    }
+  }
 }
 
 export async function listAccounts(): Promise<Account[]> {

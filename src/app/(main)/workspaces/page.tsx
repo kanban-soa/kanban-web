@@ -60,16 +60,16 @@ export default function WorkspacesPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {workspaces.map((ws) => (
               <WorkspaceCard
-                key={ws.id}
-                id={ws.id}
+                key={ws.publicId}
+                id={ws.publicId}
                 name={ws.name}
                 members={ws.members}
                 onClick={(id) => router.push(`/workspaces/${id}/boards`)}
                 onInvite={(e, w) => handleInvite(e as React.MouseEvent, w as { id: string; name: string })}
                 onEdit={() =>
-                  setEditWorkspace({ id: ws.id, name: ws.name, description: ws.description })
+                  setEditWorkspace({ id: ws.publicId, name: ws.name, description: ws.description })
                 }
-                onDelete={() => setDeleteWorkspace({ id: ws.id, name: ws.name })}
+                onDelete={() => setDeleteWorkspace({ id: ws.publicId, name: ws.name })}
               />
             ))}
           </div>

@@ -3,12 +3,24 @@
 import * as React from "react";
 import Link from "next/link";
 import { MoreHorizontal, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Id } from "@/lib/board/types";
-import { useBoardsManagement } from "@/hooks/use-board";
+import {
+  useBoard,
+  useBoardLists,
+  useUpdateBoard,
+  useDeleteBoard,
+  useCreateList,
+  useUpdateList,
+  useDeleteList,
+  useCreateCard,
+  useUpdateCard,
+} from "@/hooks/use-board";
+import type { Card } from "@/lib/api/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +37,26 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+type DisplayCard = {
+  id: Id;
+  title: string;
+  description: string;
+  labels?: { text: string; color: string }[];
+};
+
+function normalizeListTitle<T extends { title?: string; name?: string }>(l: T) {
+  return { ...l, title: l.title ?? l.name ?? "" };
+}
+
+function toDisplayCard(c: Card & { name?: string }): DisplayCard {
+  return {
+    id: String(c.id ?? c.publicId ?? ""),
+    title: c.title ?? c.name ?? "",
+    description: c.description ?? "",
+    labels: c.labels?.map((lb) => ({ text: lb.name, color: lb.color })),
+  };
+}
+
 export function BoardView({
   workspaceId,
   boardId,
@@ -32,22 +64,35 @@ export function BoardView({
   workspaceId: Id;
   boardId: Id;
 }) {
-  const {
-    getBoard,
-    getListsForBoard,
-    getcardsForList,
-    isLoading,
-    initBoard,
-    createList,
-    updateList,
-    createcard,
-    deleteList,
-    updateBoard,
-    deleteBoard,
-    updatecard,
-  } = useBoardsManagement(workspaceId);
-  const board = getBoard(boardId);
-  const lists = getListsForBoard(boardId);
+  const { data: board, isLoading: isBoardLoading } = useBoard(
+    workspaceId,
+    boardId,
+  );
+  const { data: rawLists = [], isLoading: isListsLoading } = useBoardLists(
+    workspaceId,
+    boardId,
+  );
+
+  const lists = React.useMemo(
+    () =>
+      rawLists.map((l) => {
+        const normalized = normalizeListTitle(l);
+        const cards = ((l as unknown as { cards?: Card[] }).cards ?? []).map(
+          toDisplayCard,
+        );
+        return { ...normalized, cards };
+      }),
+    [rawLists],
+  );
+
+  const updateBoardMut = useUpdateBoard(workspaceId, boardId);
+  const deleteBoardMut = useDeleteBoard(workspaceId);
+  const createListMut = useCreateList(workspaceId, boardId);
+  const updateListMut = useUpdateList(workspaceId, boardId);
+  const deleteListMut = useDeleteList(workspaceId, boardId);
+  const updateCardMut = useUpdateCard(workspaceId, boardId);
+
+  const isLoading = isBoardLoading || isListsLoading;
 
   const [newListTitle, setNewListTitle] = React.useState("");
   const [isListOpen, setIsListOpen] = React.useState(false);
@@ -61,23 +106,29 @@ export function BoardView({
   React.useEffect(() => {
     if (board) {
       setBoardTitle(board.title);
-      setBoardDescription(board.description);
+      setBoardDescription(board.description ?? "");
     }
   }, [board]);
 
   const handleUpdateBoard = () => {
-    if (board) {
-      updateBoard(board.id, {
-        title: boardTitle,
-        description: boardDescription,
-      });
-      setIsEditModalOpen(false);
-    }
+    if (!board) return;
+    updateBoardMut.mutate(
+      { title: boardTitle, description: boardDescription },
+      {
+        onSuccess: () => setIsEditModalOpen(false),
+        onError: () => toast.error("Failed to update board"),
+      },
+    );
   };
 
   const handleDeleteBoard = () => {
-    deleteBoard(boardId);
-    setIsDeleteModalOpen(false);
+    deleteBoardMut.mutate(boardId, {
+      onSuccess: () => {
+        setIsDeleteModalOpen(false);
+        toast.success("Board deleted");
+      },
+      onError: () => toast.error("Failed to delete board"),
+    });
   };
 
   if (isLoading) {
@@ -101,7 +152,9 @@ export function BoardView({
         <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center justify-between gap-3 px-6 py-4">
             <div className="min-w-0">
-              <div className="truncate text-lg font-semibold tracking-tight">Board not found</div>
+              <div className="truncate text-lg font-semibold tracking-tight">
+                Board not found
+              </div>
             </div>
           </div>
         </div>
@@ -215,8 +268,8 @@ export function BoardView({
           <div>
             <p>
               This action will permanently delete the board{" "}
-              <strong>{board.title}</strong> and all its contents. This
-              cannot be undone.
+              <strong>{board.title}</strong> and all its contents. This cannot
+              be undone.
             </p>
           </div>
           <DialogFooter>
@@ -237,8 +290,8 @@ export function BoardView({
         <div className="flex min-w-full items-start gap-4">
           {lists.length === 0 ? (
             <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">
-              This board has no lists yet. Click <span className="font-medium">Init</span> to
-              create default columns, or add your own list above.
+              This board has no lists yet. Click{" "}
+              <span className="font-medium">Add list</span> to create one.
             </div>
           ) : (
             lists.map((list) => (
@@ -248,11 +301,20 @@ export function BoardView({
                 boardId={boardId}
                 listId={list.id}
                 title={list.title}
-                cards={getcardsForList(list.id)}
-                onAddcard={(t, d) => createcard(boardId, list.id, t, d)}
-                onUpdateList={(newTitle) => updateList(list.id, { title: newTitle })}
-                onDeleteList={() => deleteList(boardId, list.id)}
-                onMoveCard={(cardId, newListId) => updatecard(cardId, { listId: newListId })}
+                cards={list.cards}
+                onUpdateList={(newTitle) =>
+                  updateListMut.mutate({
+                    listId: list.id,
+                    payload: { name: newTitle },
+                  })
+                }
+                onDeleteList={() => deleteListMut.mutate(list.id)}
+                onMoveCard={(cardId, newListId) =>
+                  updateCardMut.mutate({
+                    cardId,
+                    payload: { targetListId: newListId },
+                  })
+                }
               />
             ))
           )}
@@ -261,7 +323,10 @@ export function BoardView({
 
       {isListOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/20" onClick={() => setIsListOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/20"
+            onClick={() => setIsListOpen(false)}
+          />
           <div
             role="dialog"
             aria-modal="true"
@@ -278,18 +343,30 @@ export function BoardView({
                 placeholder="List title…"
               />
               <div className="flex justify-end gap-2">
-                <Button variant="outline" type="button" onClick={() => setIsListOpen(false)}>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsListOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button
                   type="button"
+                  disabled={!newListTitle.trim() || createListMut.isPending}
                   onClick={() => {
-                    createList(boardId, newListTitle);
-                    setNewListTitle("");
-                    setIsListOpen(false);
+                    createListMut.mutate(
+                      { name: newListTitle.trim() },
+                      {
+                        onSuccess: () => {
+                          setNewListTitle("");
+                          setIsListOpen(false);
+                        },
+                        onError: () => toast.error("Failed to create list"),
+                      },
+                    );
                   }}
                 >
-                  Create
+                  {createListMut.isPending ? "Creating..." : "Create"}
                 </Button>
               </div>
             </div>
@@ -306,7 +383,6 @@ function ListColumn({
   listId,
   title,
   cards,
-  onAddcard,
   onUpdateList,
   onDeleteList,
   onMoveCard,
@@ -315,12 +391,13 @@ function ListColumn({
   boardId: Id;
   listId: Id;
   title: string;
-  cards: { id: Id; title: string; description: string; labels?: { text: string; color: string }[] }[];
-  onAddcard: (title: string, description: string) => void;
+  cards: DisplayCard[];
   onUpdateList: (title: string) => void;
   onDeleteList: () => void;
   onMoveCard: (cardId: Id, newListId: Id) => void;
 }) {
+  const createCardMut = useCreateCard(workspaceId, boardId, listId);
+
   const [cardTitle, setcardTitle] = React.useState("");
   const [cardDescription, setcardDescription] = React.useState("");
   const [iscardOpen, setIscardOpen] = React.useState(false);
@@ -329,6 +406,10 @@ function ListColumn({
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [editTitle, setEditTitle] = React.useState(title);
   const [isOver, setIsOver] = React.useState(false);
+
+  React.useEffect(() => {
+    setEditTitle(title);
+  }, [title]);
 
   const handleTitleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -341,10 +422,25 @@ function ListColumn({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setEditTitle(title);
       setIsEditingTitle(false);
     }
+  };
+
+  const handleCreateCard = () => {
+    if (!cardTitle.trim()) return;
+    createCardMut.mutate(
+      { title: cardTitle.trim(), description: cardDescription || undefined },
+      {
+        onSuccess: () => {
+          setcardTitle("");
+          setcardDescription("");
+          setIscardOpen(false);
+        },
+        onError: () => toast.error("Failed to create card"),
+      },
+    );
   };
 
   return (
@@ -370,7 +466,9 @@ function ListColumn({
               {title}
             </div>
           )}
-          <div className="text-xs text-muted-foreground ml-1 mt-0.5">{cards.length} cards</div>
+          <div className="text-xs text-muted-foreground ml-1 mt-0.5">
+            {cards.length} cards
+          </div>
         </div>
         <div className="relative flex items-center gap-1">
           <Button
@@ -422,7 +520,7 @@ function ListColumn({
       <div
         className={cn(
           "space-y-2 p-3 min-h-[100px] transition-colors rounded-b-xl",
-          isOver && "bg-primary/5"
+          isOver && "bg-primary/5",
         )}
         onDragOver={(e) => {
           e.preventDefault();
@@ -462,7 +560,9 @@ function ListColumn({
                   </span>
                 ))}
                 {t.labels.length > 3 ? (
-                  <span className="text-[11px] text-muted-foreground">+{t.labels.length - 3}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    +{t.labels.length - 3}
+                  </span>
                 ) : null}
               </div>
             ) : null}
@@ -509,14 +609,10 @@ function ListColumn({
           <DialogFooter>
             <Button
               type="button"
-              onClick={() => {
-                onAddcard(cardTitle, cardDescription);
-                setcardTitle("");
-                setcardDescription("");
-                setIscardOpen(false);
-              }}
+              onClick={handleCreateCard}
+              disabled={createCardMut.isPending}
             >
-              Create
+              {createCardMut.isPending ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -529,14 +625,12 @@ function ListColumn({
           </DialogHeader>
           <div>
             <p>
-              This will remove the list and all its cards. This action cannot be undone.
+              This will remove the list and all its cards. This action cannot be
+              undone.
             </p>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -554,4 +648,3 @@ function ListColumn({
     </div>
   );
 }
-

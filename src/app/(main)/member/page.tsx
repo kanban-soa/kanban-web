@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { WorkspaceCard } from "@/components/member/workspace-card";
 import { InsightCard } from "@/components/member/insight-card";
 import { MembersTable } from "@/components/member/members-table";
@@ -14,7 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
 
 export default function MemberPage() {
-  const router = useRouter();
   const [isInviteOpen, setIsInviteOpen] = React.useState(false);
   const [isWorkspaceSwitchOpen, setIsWorkspaceSwitchOpen] = React.useState(false);
 
@@ -32,7 +30,6 @@ export default function MemberPage() {
     const ws = workspaces.find((w) => w.publicId === workspacePublicId);
     if (ws) {
       setCurrentWorkspace(ws);
-      router.push(`/workspaces/${ws.publicId}/boards`);
     }
     setIsWorkspaceSwitchOpen(false);
   };
