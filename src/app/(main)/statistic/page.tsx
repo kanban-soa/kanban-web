@@ -14,12 +14,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useWorkspaces } from "@/hooks/use-workspaces";
-import { useStatisticsSummary } from "@/hooks/use-statistics";
+import {
+  useStatisticsSummary,
+  useWorkspaceActivities,
+} from "@/hooks/use-statistics";
 import {
   exportStatistics,
+  type Activity,
   type StatisticsPriority,
   type StatisticsRange,
 } from "@/lib/api/statistics.api";
+import { Badge } from "@/components/ui/badge";
 
 const range: StatisticsRange = "30d";
 const emptyPriorities: StatisticsPriority[] = [];
@@ -55,21 +60,52 @@ function buildPrioritySegments(priorities: StatisticsPriority[]) {
     return segment;
   });
 }
+
+function ActivityItem({ activity }: { activity: Activity }) {
+  const dateFormatter = React.useMemo(() => {
+    return new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }, []);
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
+        {formatInitials(activity.actorUserId)}
+      </div>
+      <div className="flex-1">
+        <p className="text-sm">
+          <span className="font-semibold text-primary">{activity.actorUserId}</span>{" "}
+          <span className="italic">{activity.actionType}</span> on{" "}
+          <span className="font-semibold">{activity.entityType}</span>{" "}
+          <span className="text-muted-foreground">{activity.entityId}</span>
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {dateFormatter.format(new Date(activity.createdAt))}
+        </p>
+      </div>
+      <Badge variant="outline">{activity.actionType.split(".")[1]}</Badge>
+    </div>
+  );
+}
+
 export default function StatisticPage() {
   const { data: workspaces, isLoading: isWorkspaceLoading } = useWorkspaces();
   const workspaceId = workspaces?.[0]?.id;
   const [isExporting, setIsExporting] = React.useState(false);
   const [exportFormat, setExportFormat] = React.useState<"csv" | "json">("csv");
-  //TODO
   const {
     data: summary,
     isLoading: isStatsLoading,
     isError: isStatsError,
   } = useStatisticsSummary(workspaceId, range);
+  const { data: activitiesData, isLoading: isActivitiesLoading } =
+    useWorkspaceActivities(workspaceId, {
+      limit: 5,
+    });
 
-  console.log(`[54]Summary: ${JSON.stringify(summary)}`);
-
-  const isLoading = isWorkspaceLoading || isStatsLoading;
+  const isLoading = isWorkspaceLoading || isStatsLoading || isActivitiesLoading;
   const numberFormatter = React.useMemo(() => new Intl.NumberFormat(), []);
   const percentFormatter = React.useMemo(
     () => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }),
@@ -77,7 +113,7 @@ export default function StatisticPage() {
   );
 
   const metrics = summary?.metrics;
-  const activities = summary?.activities ?? [];
+  const activities = activitiesData?.items ?? [];
   const priorities = summary?.priorities ?? emptyPriorities;
   const workloads = summary?.workloads ?? [];
   const prioritySegments = React.useMemo(
@@ -236,13 +272,17 @@ export default function StatisticPage() {
           <div className="rounded-xl border border-border bg-card p-8 shadow-sm lg:col-span-2">
             <div className="mb-8 flex items-center justify-between">
               <h2 className="text-xl font-black">Recent Activity</h2>
-              <button className="text-xs font-bold uppercase tracking-wider text-primary hover:underline">
-                View All Logs
-              </button>
+              <Button
+                asChild
+                variant="link"
+                className="text-xs font-bold uppercase tracking-wider text-primary hover:underline"
+              >
+                <Link href="/statistic/activities">View All Logs</Link>
+              </Button>
             </div>
             <div className="space-y-6">
               {isLoading ? (
-                Array.from({ length: 4 }).map((_, index) => (
+                Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="flex items-center gap-4">
                     <Skeleton className="size-10 rounded-full" />
                     <div className="flex-1 space-y-2">
@@ -257,33 +297,8 @@ export default function StatisticPage() {
                   No recent activity available yet.
                 </div>
               ) : (
-                activities.map((activity, index) => (
-                  <div
-                    key={`${activity.user}-${activity.time}-${index}`}
-                    className="flex items-center gap-4"
-                  >
-                    <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                      {formatInitials(activity.user)}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm">
-                        <span className="font-semibold text-primary">
-                          {activity.user}
-                        </span>{" "}
-                        {activity.action}{" "}
-                        <span className="italic">{activity.target}</span>
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {activity.time} in{" "}
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-foreground">
-                          {activity.team}
-                        </span>
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-muted px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-foreground">
-                      {activity.status}
-                    </span>
-                  </div>
+                activities.map((activity) => (
+                  <ActivityItem key={activity.id} activity={activity} />
                 ))
               )}
             </div>
@@ -304,7 +319,7 @@ export default function StatisticPage() {
                   </>
                 ) : priorities.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    No priority data available yet.
+                    No priority data available.
                   </div>
                 ) : (
                   <>

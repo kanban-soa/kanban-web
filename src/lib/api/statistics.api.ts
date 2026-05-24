@@ -15,15 +15,6 @@ export type StatisticsMetrics = {
   dueSoonTrend: number;
 };
 
-export type StatisticsActivity = {
-  user: string;
-  action: string;
-  target: string;
-  time: string;
-  team: string;
-  status: string;
-};
-
 export type StatisticsPriority = {
   label: string;
   value: number;
@@ -39,7 +30,6 @@ export type StatisticsWorkload = {
 export type StatisticsSummary = {
   range: StatisticsRange;
   metrics: StatisticsMetrics;
-  activities: StatisticsActivity[];
   priorities: StatisticsPriority[];
   workloads: StatisticsWorkload[];
 };
@@ -59,8 +49,56 @@ export type StatisticsSelfPerformance = {
   overdueTasks: StatisticsSelfPerformanceTask[];
 };
 
+export enum ActivityAction {
+  CARD_CREATED = "card.created",
+  CARD_UPDATED = "card.updated",
+  CARD_DELETED = "card.deleted",
+  CARD_ARCHIVED = "card.archived",
+  BOARD_CREATED = "board.created",
+  BOARD_UPDATED = "board.updated",
+  BOARD_DELETED = "board.deleted",
+}
+
+export type Activity = {
+  id: number;
+  publicId: string;
+  workspaceId: number;
+  actorUserId: string;
+  actionType: ActivityAction;
+  entityType: "card" | "board";
+  entityId: string;
+  metadata: Record<string, any>;
+  createdAt: string;
+};
+
+export type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PagedActivityResponse = {
+  items: Activity[];
+  pagination: Pagination;
+};
+
+type PagedActivityRequest = {
+  page?: number;
+  limit?: number;
+  actionType?: string;
+  entityType?: "card" | "board";
+  actorUserId?: string;
+  from?: string;
+  to?: string;
+};
+
 type StatisticsSummaryResponse = {
   data: StatisticsSummary;
+};
+
+type PagedActivityApiResponse = {
+  data: PagedActivityResponse;
 };
 
 type StatisticsSelfPerformanceResponse = {
@@ -86,6 +124,17 @@ export async function getStatisticsSummary(
   );
   console.log("Fetched statistics summary:", JSON
       .stringify(data));
+  return data.data;
+}
+
+export async function getWorkspaceActivities(
+  workspaceId: string,
+  params: PagedActivityRequest = {},
+): Promise<PagedActivityResponse> {
+  const { data } = await api.get<PagedActivityApiResponse>(
+    buildStatisticsUrl(STATISTICS.ACTIVITIES(workspaceId)),
+    { params },
+  );
   return data.data;
 }
 
