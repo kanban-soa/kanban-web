@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { login, register } from "@/lib/api/auth.api";
 import { ThemeToggle } from "@/components/theme/theme-provider";
-import { mockState } from "@/lib/board/mockWorkspace";
 import { saveWorkspaceState } from "@/lib/board/storage";
 
 type Mode = "login" | "register";
@@ -23,8 +22,21 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   const handleGuestLogin = () => {
-    // Seed default data for guest
-    saveWorkspaceState("default", mockState);
+    // Save a clean default workspace state for guest
+    const cleanState = {
+      workspaces: {
+        default: {
+          id: "default",
+          name: "My Workspace",
+          boardIds: [],
+          members: ["Guest"]
+        }
+      },
+      boards: {},
+      lists: {},
+      cards: {}
+    };
+    saveWorkspaceState("default", cleanState);
     router.push("/workspaces/default/boards");
   };
 
