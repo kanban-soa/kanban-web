@@ -1,35 +1,57 @@
 "use client";
 
-import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Workspace, WorkspaceContextType } from "@/contexts/context.type";
-import { listWorkspaces } from "@/lib/api/workspace.api";
+import { useWorkspaces } from "@/hooks/use-workspaces";
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
+function extractWorkspaceIdFromPath(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const match = pathname.match(/^\/workspaces\/([^/]+)/);
+  const id = match?.[1];
+  if (!id || id === "default") return null;
+  return id;
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { data: workspaces = [], isLoading: isLoadingWorkspaces } = useWorkspaces();
+
+  const urlWorkspaceId = useMemo(
+    () => extractWorkspaceIdFromPath(pathname),
+    [pathname],
+  );
+
+  // Remember the most recently selected workspace so routes that don't carry a
+  // workspaceId in the URL (e.g. /member, /statistic) still reflect the user's
+  // last choice instead of snapping back to workspaces[0].
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchWorkspaces = async () => {
-      setIsLoadingWorkspaces(true);
-      try {
-        const data = await listWorkspaces();
-        setWorkspaces(data);
-        // Auto-set the most recently created workspace (first in list) as current
-        if (data.length > 0 && !currentWorkspace) {
-          setCurrentWorkspace(data[0]);
-        }
-      } catch (error) {
-        console.error("Failed to fetch workspaces", error);
-      } finally {
-        setIsLoadingWorkspaces(false);
-      }
-    };
+    if (urlWorkspaceId) setLastSelectedId(urlWorkspaceId);
+  }, [urlWorkspaceId]);
 
-    fetchWorkspaces();
-  }, []);
+  const currentWorkspace = useMemo<Workspace | null>(() => {
+    if (workspaces.length === 0) return null;
+    const targetId = urlWorkspaceId ?? lastSelectedId;
+    const match = targetId
+      ? workspaces.find((ws) => ws.publicId === targetId)
+      : undefined;
+    return match ?? workspaces[0];
+  }, [workspaces, urlWorkspaceId, lastSelectedId]);
+
+  const setCurrentWorkspace = useCallback(
+    (workspace: Workspace) => {
+      setLastSelectedId(workspace.publicId);
+      if (urlWorkspaceId && urlWorkspaceId !== workspace.publicId) {
+        router.push(`/workspaces/${workspace.publicId}/boards`);
+      }
+    },
+    [router, urlWorkspaceId],
+  );
 
   return (
     <WorkspaceContext.Provider

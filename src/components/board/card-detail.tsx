@@ -3,14 +3,33 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, Trash2, X, Check, Plus } from "lucide-react";
+import { Trash2, X, Check, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { Id, Label } from "@/lib/board/types";
-import { useBoardsManagement } from "@/hooks/use-board";
+import type { Id } from "@/lib/board/types";
+import {
+  useBoardLists,
+  useBoardLabels,
+  useCard,
+  useUpdateCard,
+  useDeleteCard,
+  useAttachLabelToCard,
+  useDetachLabelFromCard,
+  useSetCardDueDate,
+  useClearCardDueDate,
+  useAssignMemberToCard,
+  useRemoveMemberFromCard,
+} from "@/hooks/use-board";
+import { useMember } from "@/hooks/use-workspaces";
+import type { Label as ApiLabel } from "@/lib/api/types";
 import {
   Dialog,
   DialogContent,
@@ -21,16 +40,25 @@ import {
 } from "@/components/ui/dialog";
 
 const LABEL_COLORS = [
-  "#ef4444", "#f97316", "#f59e0b", "#84cc16", "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e"
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#d946ef",
+  "#ec4899",
+  "#f43f5e",
 ];
 
-function getLabelColor(label: string) {
-  let hash = 0;
-  for (let i = 0; i < label.length; i++) {
-    hash = label.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return LABEL_COLORS[Math.abs(hash) % LABEL_COLORS.length];
-}
+type DisplayList = { id: string; title: string };
 
 export function CardDetailPage({
   workspaceId,
@@ -42,86 +70,120 @@ export function CardDetailPage({
   cardId: Id;
 }) {
   const router = useRouter();
-  const { workspace, getBoard, getcard, getListsForBoard, updatecard, deletecard, createBoardLabel } = useBoardsManagement(workspaceId);
 
-  const board = getBoard(boardId);
-  const card = getcard(cardId);
-  const lists = getListsForBoard(boardId);
+  const { data: card, isLoading: isCardLoading } = useCard(cardId);
+  const { data: rawLists = [] } = useBoardLists(workspaceId, boardId);
+  const { data: boardLabels = [] } = useBoardLabels(boardId);
+  const { data: workspaceMembers = [] } = useMember(workspaceId);
+
+  const updateCardMut = useUpdateCard(workspaceId, boardId);
+  const deleteCardMut = useDeleteCard(workspaceId, boardId);
+  const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
+  const detachLabelMut = useDetachLabelFromCard(workspaceId, boardId);
+  const setDueDateMut = useSetCardDueDate();
+  const clearDueDateMut = useClearCardDueDate();
+  const assignMemberMut = useAssignMemberToCard(workspaceId, boardId);
+  const removeMemberMut = useRemoveMemberFromCard(workspaceId, boardId);
+
+  const lists: DisplayList[] = React.useMemo(
+    () =>
+      rawLists.map((l) => {
+        const withTitle = l as { title?: string; name?: string };
+        return {
+          id: String(l.id),
+          title: withTitle.title ?? withTitle.name ?? "",
+        };
+      }),
+    [rawLists],
+  );
+
+  const cardLabels = React.useMemo<ApiLabel[]>(
+    () => (card?.labels ?? []) as ApiLabel[],
+    [card?.labels],
+  );
+  const cardMemberIds = React.useMemo<string[]>(
+    () => card?.members ?? [],
+    [card?.members],
+  );
 
   const [title, setTitle] = React.useState(card?.title ?? "");
   const [description, setDescription] = React.useState(card?.description ?? "");
   const [listId, setListId] = React.useState(card?.listId ?? "");
-  const [labels, setLabels] = React.useState<Label[]>(card?.labels ?? []);
-  const [members, setMembers] = React.useState<string[]>(card?.members ?? []);
+  const [dueDate, setDueDate] = React.useState(card?.dueDate ?? "");
   const [labelInput, setLabelInput] = React.useState("");
   const [labelColor, setLabelColor] = React.useState("#3b82f6");
   const [memberInput, setMemberInput] = React.useState("");
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
-  const [isLabelOpen, setIsLabelOpen] = React.useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = React.useState(false);
-  const [isMemberOpen, setIsMemberOpen] = React.useState(false);
-  const [dueDate, setDueDate] = React.useState(card?.dueDate ?? "");
 
   React.useEffect(() => {
     setTitle(card?.title ?? "");
     setDescription(card?.description ?? "");
     setListId(card?.listId ?? "");
-    setLabels(card?.labels ?? []);
-    setMembers(card?.members ?? []);
     setDueDate(card?.dueDate ?? "");
-  }, [card?.description, card?.labels, card?.listId, card?.members, card?.title, card?.dueDate]);
+  }, [card?.title, card?.description, card?.listId, card?.dueDate]);
 
-  const toggleLabel = (labelToToggle: Label) => {
-    let next;
-    if (labels.some((l) => l.text === labelToToggle.text)) {
-      next = labels.filter((l) => l.text !== labelToToggle.text);
+  const toggleLabel = (label: ApiLabel) => {
+    const isAttached = cardLabels.some((l) => l.id === label.id);
+    if (isAttached) {
+      detachLabelMut.mutate({ cardId, labelId: label.id });
     } else {
-      next = [...labels, labelToToggle];
+      attachLabelMut.mutate({ cardId, labelId: label.id });
     }
-    setLabels(next);
-    updatecard(cardId, { labels: next });
   };
 
   const createAndAddLabel = () => {
-    const newLabelText = labelInput.trim();
-    if (newLabelText) {
-      const newLabel = { text: newLabelText, color: labelColor };
-      createBoardLabel(boardId, newLabel);
-      if (!labels.some((l) => l.text === newLabelText)) {
-        toggleLabel(newLabel);
-      }
-    }
+    toast.error(
+      "Creating labels isn't supported yet — backend endpoint not exposed.",
+    );
     setLabelInput("");
     setIsCreateLabelOpen(false);
   };
 
-  const toggleMember = (value: string) => {
-    let next;
-    if (members.includes(value)) {
-      next = members.filter((m) => m !== value);
+  const toggleMember = (workspaceMemberPublicId: string) => {
+    const isAssigned = cardMemberIds.includes(workspaceMemberPublicId);
+    if (isAssigned) {
+      removeMemberMut.mutate({ cardId, memberId: workspaceMemberPublicId });
     } else {
-      next = [...members, value];
+      assignMemberMut.mutate({ cardId, workspaceMemberPublicId });
     }
-    setMembers(next);
-    updatecard(cardId, { members: next });
   };
 
   const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setDueDate(val);
-    updatecard(cardId, { dueDate: val });
+    if (val) {
+      setDueDateMut.mutate({ cardId, dueDate: val });
+    } else {
+      clearDueDateMut.mutate(cardId);
+    }
   };
 
-  const workspaceMembers = workspace?.members ?? [];
-  const filteredMembers = workspaceMembers.filter((name) =>
-    name.toLowerCase().includes(memberInput.trim().toLowerCase()),
-  );
+  const memberLabel = (publicId: string) =>
+    workspaceMembers.find((m) => m.publicId === publicId)?.name ??
+    workspaceMembers.find((m) => m.publicId === publicId)?.email ??
+    publicId;
+
+  const filteredMembers = workspaceMembers.filter((m) => {
+    const haystack = (m.name ?? m.email ?? "").toLowerCase();
+    return haystack.includes(memberInput.trim().toLowerCase());
+  });
+
+  if (isCardLoading) {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      </div>
+    );
+  }
 
   if (!card) {
     return (
       <div className="p-6">
         <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">
-          card not found.
+          Card not found.
         </div>
       </div>
     );
@@ -133,14 +195,18 @@ export function CardDetailPage({
         <div className="flex items-center justify-between gap-3 px-6 py-4">
           <div className="min-w-0">
             <div className="text-xs text-muted-foreground">card</div>
-            <div className="truncate text-lg font-semibold tracking-tight">{card.title}</div>
+            <div className="truncate text-lg font-semibold tracking-tight">
+              {card.title}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               type="button"
-              onClick={() => router.push(`/workspaces/${workspaceId}/boards/${boardId}`)}
+              onClick={() =>
+                router.push(`/workspaces/${workspaceId}/boards/${boardId}`)
+              }
             >
               <X />
               Close
@@ -158,7 +224,14 @@ export function CardDetailPage({
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  onBlur={() => updatecard(cardId, { title })}
+                  onBlur={() => {
+                    if (title !== card.title) {
+                      updateCardMut.mutate({
+                        cardId,
+                        payload: { title },
+                      });
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -170,7 +243,12 @@ export function CardDetailPage({
                   variant="outline"
                   size="sm"
                   type="button"
-                  onClick={() => updatecard(cardId, { description })}
+                  onClick={() =>
+                    updateCardMut.mutate({
+                      cardId,
+                      payload: { description },
+                    })
+                  }
                 >
                   Save
                 </Button>
@@ -193,8 +271,12 @@ export function CardDetailPage({
             <div>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" className="h-8 justify-start px-2 font-normal hover:bg-muted -ml-2">
-                    {lists.find((l) => l.id === listId)?.title || "Select list"}
+                  <Button
+                    variant="ghost"
+                    className="h-8 justify-start px-2 font-normal hover:bg-muted -ml-2"
+                  >
+                    {lists.find((l) => l.id === listId)?.title ||
+                      "Select list"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-56 p-2">
@@ -207,11 +289,20 @@ export function CardDetailPage({
                           className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
                           onClick={() => {
                             setListId(l.id);
-                            updatecard(cardId, { listId: l.id });
+                            updateCardMut.mutate({
+                              cardId,
+                              payload: { targetListId: l.id },
+                            });
                           }}
                         >
-                          <span className={isActive ? "font-medium" : "font-normal"}>{l.title}</span>
-                          {isActive && <Check className="h-4 w-4 text-gray-500" />}
+                          <span
+                            className={isActive ? "font-medium" : "font-normal"}
+                          >
+                            {l.title}
+                          </span>
+                          {isActive && (
+                            <Check className="h-4 w-4 text-gray-500" />
+                          )}
                         </button>
                       );
                     })}
@@ -222,13 +313,13 @@ export function CardDetailPage({
 
             <div className="text-muted-foreground pt-2">Labels</div>
             <div className="flex flex-wrap items-center gap-2">
-              {labels.map((label, idx) => (
+              {cardLabels.map((label) => (
                 <span
-                  key={idx}
+                  key={label.id}
                   className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-white shadow-sm"
                   style={{ backgroundColor: label.color }}
                 >
-                  {label.text}
+                  {label.name}
                   <button
                     type="button"
                     className="text-white/80 hover:text-white ml-1"
@@ -240,33 +331,54 @@ export function CardDetailPage({
               ))}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-7 rounded-full text-xs text-muted-foreground">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 rounded-full text-xs text-muted-foreground"
+                  >
                     <Plus className="mr-1 h-3 w-3" /> Add label
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-56 p-3">
                   <div className="space-y-3">
-                    <div className="text-xs font-semibold text-muted-foreground">Edit labels</div>
+                    <div className="text-xs font-semibold text-muted-foreground">
+                      Edit labels
+                    </div>
                     <div className="max-h-48 space-y-1 overflow-y-auto">
-                      {(board?.labels ?? []).map((label, idx) => {
-                        const isChecked = labels.some((l) => l.text === label.text);
+                      {boardLabels.map((label) => {
+                        const isChecked = cardLabels.some(
+                          (l) => l.id === label.id,
+                        );
                         return (
                           <button
-                            key={idx}
+                            key={label.id}
                             type="button"
                             className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
                             onClick={() => toggleLabel(label)}
                           >
                             <div className="flex items-center gap-2">
-                              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: label.color }} />
-                              <span className={isChecked ? "font-medium" : "font-normal"}>{label.text}</span>
+                              <span
+                                className="h-3 w-3 rounded-full"
+                                style={{ backgroundColor: label.color }}
+                              />
+                              <span
+                                className={
+                                  isChecked ? "font-medium" : "font-normal"
+                                }
+                              >
+                                {label.name}
+                              </span>
                             </div>
-                            {isChecked && <Check className="h-4 w-4 text-gray-500" />}
+                            {isChecked && (
+                              <Check className="h-4 w-4 text-gray-500" />
+                            )}
                           </button>
                         );
                       })}
-                      {(board?.labels ?? []).length === 0 && (
-                        <div className="px-2 py-1 text-xs text-muted-foreground">No available labels. Create one below.</div>
+                      {boardLabels.length === 0 && (
+                        <div className="px-2 py-1 text-xs text-muted-foreground">
+                          No available labels. Create one below.
+                        </div>
                       )}
                     </div>
                     <div className="border-t pt-3">
@@ -274,11 +386,7 @@ export function CardDetailPage({
                         variant="ghost"
                         size="sm"
                         className="w-full justify-start text-xs text-muted-foreground"
-                        onClick={() => {
-                          // Close default popover hack, we use standard approach or handled by external state if controlled
-                          // For simplicity, we just trigger modal open.
-                          setIsCreateLabelOpen(true);
-                        }}
+                        onClick={() => setIsCreateLabelOpen(true)}
                       >
                         <Plus className="mr-2 h-4 w-4" /> Create a new label
                       </Button>
@@ -290,19 +398,19 @@ export function CardDetailPage({
 
             <div className="text-muted-foreground pt-2">Members</div>
             <div className="flex flex-wrap items-center gap-2">
-              {members.map((member) => (
+              {cardMemberIds.map((memberId) => (
                 <span
-                  key={member}
+                  key={memberId}
                   className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs shadow-sm"
                 >
                   <div className="flex h-4 w-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase">
-                    {member.charAt(0)}
+                    {memberLabel(memberId).charAt(0)}
                   </div>
-                  {member}
+                  {memberLabel(memberId)}
                   <button
                     type="button"
                     className="text-muted-foreground hover:text-foreground ml-1"
-                    onClick={() => toggleMember(member)}
+                    onClick={() => toggleMember(memberId)}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -310,13 +418,19 @@ export function CardDetailPage({
               ))}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-7 rounded-full text-xs text-muted-foreground">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 rounded-full text-xs text-muted-foreground"
+                  >
                     <Plus className="mr-1 h-3 w-3" /> Add member
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-56 p-3">
                   <div className="space-y-3">
-                    <div className="text-xs font-semibold text-muted-foreground">Members</div>
+                    <div className="text-xs font-semibold text-muted-foreground">
+                      Members
+                    </div>
                     <Input
                       value={memberInput}
                       onChange={(e) => setMemberInput(e.target.value)}
@@ -324,22 +438,26 @@ export function CardDetailPage({
                       className="h-8"
                     />
                     <div className="max-h-48 space-y-1 overflow-y-auto">
-                      {filteredMembers.map((name) => {
-                        const isChecked = members.includes(name);
+                      {filteredMembers.map((m) => {
+                        const isChecked = cardMemberIds.includes(m.publicId);
                         return (
                           <button
-                            key={name}
+                            key={m.publicId}
                             type="button"
                             className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
-                            onClick={() => toggleMember(name)}
+                            onClick={() => toggleMember(m.publicId)}
                           >
-                            <span>{name}</span>
-                            {isChecked && <Check className="h-4 w-4 text-gray-500" />}
+                            <span>{m.name ?? m.email}</span>
+                            {isChecked && (
+                              <Check className="h-4 w-4 text-gray-500" />
+                            )}
                           </button>
                         );
                       })}
                       {filteredMembers.length === 0 && (
-                        <div className="px-2 py-1 text-xs text-muted-foreground">No matches.</div>
+                        <div className="px-2 py-1 text-xs text-muted-foreground">
+                          No matches.
+                        </div>
                       )}
                     </div>
                   </div>
@@ -349,14 +467,14 @@ export function CardDetailPage({
 
             <div className="text-muted-foreground pt-3">Due date</div>
             <div>
-              <Input 
+              <Input
                 type="date"
-                value={dueDate}
+                value={dueDate ? dueDate.slice(0, 10) : ""}
                 onChange={handleDueDateChange}
                 className="h-8 max-w-[150px] bg-transparent text-sm -ml-2 border-transparent hover:border-border focus:border-border px-2 focus-visible:ring-0"
               />
             </div>
-            
+
             <div className="col-span-2 pt-4">
               <Button
                 variant="destructive"
@@ -382,9 +500,7 @@ export function CardDetailPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete card</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone.
-            </DialogDescription>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
@@ -393,9 +509,15 @@ export function CardDetailPage({
             <Button
               variant="destructive"
               onClick={() => {
-                deletecard(cardId);
-                setIsDeleteOpen(false);
-                router.push(`/workspaces/${workspaceId}/boards/${boardId}`);
+                deleteCardMut.mutate(cardId, {
+                  onSuccess: () => {
+                    setIsDeleteOpen(false);
+                    router.push(
+                      `/workspaces/${workspaceId}/boards/${boardId}`,
+                    );
+                  },
+                  onError: () => toast.error("Failed to delete card"),
+                });
               }}
             >
               Delete
@@ -420,7 +542,9 @@ export function CardDetailPage({
                   type="button"
                   className={cn(
                     "h-8 w-8 rounded-full ring-offset-background transition-all",
-                    labelColor === c ? "ring-2 ring-ring ring-offset-2 scale-110" : ""
+                    labelColor === c
+                      ? "ring-2 ring-ring ring-offset-2 scale-110"
+                      : "",
                   )}
                   style={{ backgroundColor: c }}
                   onClick={() => setLabelColor(c)}
@@ -429,7 +553,9 @@ export function CardDetailPage({
               ))}
             </div>
             <div className="space-y-2">
-              <label htmlFor="label-name" className="text-sm font-medium">Label name</label>
+              <label htmlFor="label-name" className="text-sm font-medium">
+                Label name
+              </label>
               <Input
                 id="label-name"
                 value={labelInput}
@@ -439,7 +565,12 @@ export function CardDetailPage({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateLabelOpen(false)}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateLabelOpen(false)}
+            >
+              Cancel
+            </Button>
             <Button onClick={createAndAddLabel}>Create Label</Button>
           </DialogFooter>
         </DialogContent>
@@ -447,4 +578,3 @@ export function CardDetailPage({
     </div>
   );
 }
-

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
 import { useBoards, useCreateBoard, useDeleteBoard } from "@/hooks/use-board";
-import { useWorkspace } from "@/hooks/use-workspaces";
 
 // ── Inner component — only rendered when currentWorkspace is truthy ───────────
 function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId: string; workspaceName: string }) {
@@ -194,9 +193,9 @@ function BoardsContent({ workspacePublicId, workspaceName }: { workspacePublicId
 export default function BoardsPage() {
   const params = useParams<{ workspaceId: string }>();
   const router = useRouter();
-  const urlWorkspaceId = params.workspaceId; // numeric id from URL
+  const urlWorkspaceId = params.workspaceId;
 
-  const { currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces } =
+  const { currentWorkspace, workspaces, isLoadingWorkspaces } =
     useWorkspaceContext();
 
   // Resolve the "default" placeholder → the current (or first) workspace's id,
@@ -212,19 +211,8 @@ export default function BoardsPage() {
     }
   }, [urlWorkspaceId, isLoadingWorkspaces, currentWorkspace, workspaces, router]);
 
-  // Query server for the workspace matching the URL id (skip while "default")
-  const { data: fetchedWorkspace, isLoading: isWorkspaceLoading } =
-    useWorkspace(urlWorkspaceId === "default" ? "" : urlWorkspaceId);
-
-  // Sync server result → context
-  React.useEffect(() => {
-    if (fetchedWorkspace) {
-      setCurrentWorkspace(fetchedWorkspace);
-    }
-  }, [fetchedWorkspace]);
-
   // Loading state (also while resolving the "default" placeholder)
-  if (isWorkspaceLoading || urlWorkspaceId === "default") {
+  if (isLoadingWorkspaces || urlWorkspaceId === "default") {
     return (
       <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -236,8 +224,8 @@ export default function BoardsPage() {
     );
   }
 
-  // Workspace not found on server
-  if (!fetchedWorkspace) {
+  // Workspace not found in the user's list
+  if (!currentWorkspace) {
     return (
       <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
         <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed p-16 text-center">
@@ -251,11 +239,10 @@ export default function BoardsPage() {
     );
   }
 
-  // Has workspace → fetch and render boards
   return (
     <BoardsContent
-      workspacePublicId={fetchedWorkspace.publicId}
-      workspaceName={fetchedWorkspace.name}
+      workspacePublicId={currentWorkspace.publicId}
+      workspaceName={currentWorkspace.name}
     />
   );
 }
