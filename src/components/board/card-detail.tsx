@@ -23,11 +23,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import type { Id } from "@/lib/board/types";
 import {
   useBoard,
   useBoardLists,
   useBoardLabels,
+  useCreateLabel,
   useCard,
   useUpdateCard,
   useDeleteCard,
@@ -49,6 +51,25 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+
+const LABEL_COLORS = [
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#d946ef",
+  "#ec4899",
+  "#f43f5e",
+];
 
 type DisplayList = { id: string; title: string };
 
@@ -84,6 +105,7 @@ export function CardDetailPage({
     entityId: card?.publicId ?? String(cardId),
   });
 
+  const createLabelMut = useCreateLabel(boardId);
   const updateCardMut = useUpdateCard(workspaceId, boardId);
   const deleteCardMut = useDeleteCard(workspaceId, boardId);
   const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
@@ -128,8 +150,11 @@ export function CardDetailPage({
   const [comment, setComment] = React.useState("");
   const [listId, setListId] = React.useState(card?.listId ?? "");
   const [dueDate, setDueDate] = React.useState(card?.dueDate ?? "");
+  const [labelInput, setLabelInput] = React.useState("");
+  const [labelColor, setLabelColor] = React.useState("#3b82f6");
   const [memberInput, setMemberInput] = React.useState("");
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+  const [isCreateLabelOpen, setIsCreateLabelOpen] = React.useState(false);
 
   React.useEffect(() => {
     setTitle(card?.title ?? "");
@@ -139,13 +164,32 @@ export function CardDetailPage({
   }, [card?.title, card?.description, card?.listId, card?.dueDate]);
 
   const toggleLabel = (label: ApiLabel) => {
-    const isAttached = cardLabels.some((l) => l.id === label.id || l.publicId === label.id);
+    const isAttached = cardLabels.some((l) => l.id === label.id);
     if (isAttached) {
       detachLabelMut.mutate({ cardId, labelId: label.id });
     } else {
       attachLabelMut.mutate({ cardId, labelId: label.id });
     }
   };
+
+  const createAndAddLabel = () => {
+    if (!labelInput.trim()) return;
+    createLabelMut.mutate(
+      { name: labelInput.trim(), color: labelColor },
+      {
+        onSuccess: (newLabel) => {
+          attachLabelMut.mutate({ cardId, labelId: newLabel.id });
+          toast.success("Label created and attached successfully!");
+          setLabelInput("");
+          setIsCreateLabelOpen(false);
+        },
+        onError: () => {
+          toast.error("Failed to create label.");
+        },
+      },
+    );
+  };
+
 
   const toggleMember = (workspaceMemberPublicId: string) => {
     const isAssigned = cardMemberIds.includes(workspaceMemberPublicId);
@@ -166,8 +210,15 @@ export function CardDetailPage({
     }
   };
 
-  const getMember = (publicId: string) =>
-    workspaceMembers.find((m) => m.publicId === publicId);
+  const memberLabel = (publicId: string): string => {
+    const member = workspaceMembers.find((m) => m.publicId === publicId);
+    const name = member?.name?.trim();
+    const email = member?.email?.trim();
+    return name || email || publicId || "Member";
+  };
+
+  const memberInitial = (publicId: string) =>
+    memberLabel(publicId).charAt(0).toUpperCase() || "?";
 
   const filteredMembers = workspaceMembers.filter((m) => {
     const haystack = (m.name ?? m.email ?? "").toLowerCase();
@@ -269,7 +320,7 @@ export function CardDetailPage({
             {/* Activity Section */}
             <div className="space-y-4 pt-2">
               <h3 className="text-base font-bold">Activity</h3>
-              
+
               <div className="relative space-y-5 pl-2">
                 {/* Vertical Line */}
                 <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-muted/60" />
@@ -285,7 +336,7 @@ export function CardDetailPage({
                     (m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId
                   );
                   const actorName = activity.metadata?.actor?.username || member?.name || "Someone";
-                  
+
                   return (
                     <div key={activity.id} className="relative flex gap-4 pl-0">
                       <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
@@ -426,19 +477,21 @@ export function CardDetailPage({
                 </PopoverContent>
               </Popover>
             </div>
-          </div>
 
-          <div className="grid grid-cols-[80px_1fr] items-start gap-2">
-            <div className="text-muted-foreground pt-1">Members</div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {cardMemberIds.map((memberId) => {
-                const member = getMember(memberId);
-                const name = member?.name || "??";
-                return (
-                  <div
-                    key={memberId}
-                    title={name}
-                    className="relative group cursor-pointer"
+            <div className="text-muted-foreground pt-2">Members</div>
+            <div className="flex flex-wrap items-center gap-2">
+              {cardMemberIds.map((memberId) => (
+                <span
+                  key={memberId}
+                  className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs shadow-sm"
+                >
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase">
+                    {memberInitial(memberId)}
+                  </div>
+                  {memberLabel(memberId)}
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground ml-1"
                     onClick={() => toggleMember(memberId)}
                   >
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted border-2 border-background ring-1 ring-muted/10 text-[9px] font-bold">
@@ -533,11 +586,62 @@ export function CardDetailPage({
                     setIsDeleteOpen(false);
                     router.push(`/workspaces/${workspaceId}/boards/${boardId}`);
                   },
+                  onError: () => toast.error("Failed to delete card"),
                 });
               }}
             >
               Delete
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCreateLabelOpen} onOpenChange={setIsCreateLabelOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create a new label</DialogTitle>
+            <DialogDescription>
+              Choose a color and write a name for the new label.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-wrap gap-2">
+              {LABEL_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={cn(
+                    "h-8 w-8 rounded-full ring-offset-background transition-all",
+                    labelColor === c
+                      ? "ring-2 ring-ring ring-offset-2 scale-110"
+                      : "",
+                  )}
+                  style={{ backgroundColor: c }}
+                  onClick={() => setLabelColor(c)}
+                  aria-label={`Select color ${c}`}
+                />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="label-name" className="text-sm font-medium">
+                Label name
+              </label>
+              <Input
+                id="label-name"
+                value={labelInput}
+                onChange={(e) => setLabelInput(e.target.value)}
+                placeholder="e.g. Bug, Feature, Urgent..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateLabelOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={createAndAddLabel}>Create Label</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

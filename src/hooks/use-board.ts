@@ -20,6 +20,7 @@ import {
   assignMemberToCard,
   removeMemberFromCard,
   listBoardLabels,
+  createLabel,
   updateLabel,
   deleteLabel,
   getBoardMetrics,
@@ -436,6 +437,18 @@ export function useBoardLabels(boardId: string) {
     enabled: !!boardId,
   });
 }
+
+export function useCreateLabel(boardId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; color: string }) =>
+      createLabel(boardId, { name: payload.name, colourCode: payload.color }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boards", boardId, "labels"] });
+    },
+  });
+}
+
 
 export function useUpdateLabel(boardId: string) {
   const queryClient = useQueryClient();

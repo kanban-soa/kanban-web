@@ -749,10 +749,15 @@ function CardItem({
   const [memberQuery, setMemberQuery] = React.useState("");
 
   const detailHref = `/workspaces/${workspaceId}/boards/${boardId}/cards/${card.id}`;
-  const memberLabel = (publicId: string) => {
+  const memberLabel = (publicId: string): string => {
     const m = workspaceMembers.find((mm) => mm.publicId === publicId);
-    return m?.name ?? m?.email ?? publicId;
+    const name = m?.name?.trim();
+    const email = m?.email?.trim();
+    return name || email || publicId || "Member";
   };
+
+  const memberInitial = (publicId: string) =>
+    memberLabel(publicId).charAt(0).toUpperCase() || "?";
 
   const filteredMembers = workspaceMembers.filter((m) => {
     const haystack = (m.name ?? m.email ?? "").toLowerCase();
@@ -957,7 +962,7 @@ function CardItem({
                 title={memberLabel(mid)}
                 className="inline-flex size-5 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase"
               >
-                {memberLabel(mid).charAt(0)}
+                {memberInitial(mid)}
               </span>
             ))}
             {card.memberIds.length > 4 && (
