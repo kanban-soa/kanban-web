@@ -18,6 +18,7 @@ import type { Id } from "@/lib/board/types";
 import {
   useBoardLists,
   useBoardLabels,
+  useCreateLabel,
   useCard,
   useUpdateCard,
   useDeleteCard,
@@ -76,6 +77,7 @@ export function CardDetailPage({
   const { data: boardLabels = [] } = useBoardLabels(boardId);
   const { data: workspaceMembers = [] } = useMember(workspaceId);
 
+  const createLabelMut = useCreateLabel(boardId);
   const updateCardMut = useUpdateCard(workspaceId, boardId);
   const deleteCardMut = useDeleteCard(workspaceId, boardId);
   const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
@@ -133,12 +135,23 @@ export function CardDetailPage({
   };
 
   const createAndAddLabel = () => {
-    toast.error(
-      "Creating labels isn't supported yet — backend endpoint not exposed.",
+    if (!labelInput.trim()) return;
+    createLabelMut.mutate(
+      { name: labelInput.trim(), color: labelColor },
+      {
+        onSuccess: (newLabel) => {
+          attachLabelMut.mutate({ cardId, labelId: newLabel.id });
+          toast.success("Label created and attached successfully!");
+          setLabelInput("");
+          setIsCreateLabelOpen(false);
+        },
+        onError: () => {
+          toast.error("Failed to create label.");
+        },
+      },
     );
-    setLabelInput("");
-    setIsCreateLabelOpen(false);
   };
+
 
   const toggleMember = (workspaceMemberPublicId: string) => {
     const isAssigned = cardMemberIds.includes(workspaceMemberPublicId);
@@ -159,10 +172,15 @@ export function CardDetailPage({
     }
   };
 
-  const memberLabel = (publicId: string) =>
-    workspaceMembers.find((m) => m.publicId === publicId)?.name ??
-    workspaceMembers.find((m) => m.publicId === publicId)?.email ??
-    publicId;
+  const memberLabel = (publicId: string): string => {
+    const member = workspaceMembers.find((m) => m.publicId === publicId);
+    const name = member?.name?.trim();
+    const email = member?.email?.trim();
+    return name || email || publicId || "Member";
+  };
+
+  const memberInitial = (publicId: string) =>
+    memberLabel(publicId).charAt(0).toUpperCase() || "?";
 
   const filteredMembers = workspaceMembers.filter((m) => {
     const haystack = (m.name ?? m.email ?? "").toLowerCase();
@@ -404,7 +422,7 @@ export function CardDetailPage({
                   className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs shadow-sm"
                 >
                   <div className="flex h-4 w-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase">
-                    {memberLabel(memberId).charAt(0)}
+                    {memberInitial(memberId)}
                   </div>
                   {memberLabel(memberId)}
                   <button
