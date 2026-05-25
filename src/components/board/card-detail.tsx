@@ -136,6 +136,8 @@ export function CardDetailPage({
     [card?.members],
   );
 
+  console.log(`Card Member: ${JSON.stringify(card)}`)
+
   const cardActivities = React.useMemo(() => {
     if (!activitiesData?.items) return [];
     return activitiesData.items.filter(
@@ -224,8 +226,6 @@ export function CardDetailPage({
     const haystack = (m.name ?? m.email ?? "").toLowerCase();
     return haystack.includes(memberInput.trim().toLowerCase());
   });
-
-  const currentListName = lists.find((l) => l.id === listId || l.id === card?.listId)?.title || "Unknown";
 
   if (isCardLoading) {
     return (
@@ -389,7 +389,7 @@ export function CardDetailPage({
         <div className="border-l bg-muted/[0.03] px-6 py-6 space-y-6 text-[13px]">
           <div className="grid grid-cols-[80px_1fr] items-baseline gap-2">
             <div className="text-muted-foreground">List</div>
-            <div className="font-medium">{currentListName}</div>
+            <div className="font-medium">{lists.find((l) => l.id === listId || l.id === card?.list?.publicId)?.title || "Unknown" }</div>
           </div>
 
           <div className="grid grid-cols-[80px_1fr] items-start gap-2">
