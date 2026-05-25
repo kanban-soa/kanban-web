@@ -493,16 +493,12 @@ export function CardDetailPage({
                     type="button"
                     className="text-muted-foreground hover:text-foreground ml-1"
                     onClick={() => toggleMember(memberId)}
+                    aria-label={`Remove ${memberLabel(memberId)} from card`}
                   >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted border-2 border-background ring-1 ring-muted/10 text-[9px] font-bold">
-                      {formatInitials(name)}
-                    </div>
-                    <div className="absolute -top-1 -right-1 hidden group-hover:flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-white scale-75">
-                      <X className="h-2 w-2" />
-                    </div>
-                  </div>
-                );
-              })}
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
