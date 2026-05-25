@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
 import { useBoards, useCreateBoard, useDeleteBoard } from "@/hooks/use-board";
-import { useWorkspace } from "@/hooks/use-workspaces";
 
 // ── Inner component — only rendered when currentWorkspace is truthy ───────────
 function BoardsContent({ workspaceId, workspaceName }: { workspaceId: string; workspaceName: string }) {
@@ -194,23 +193,27 @@ function BoardsContent({ workspaceId, workspaceName }: { workspaceId: string; wo
 // ── Page entry point — guards on currentWorkspace ────────────────────────────
 export default function BoardsPage() {
   const params = useParams<{ workspaceId: string }>();
-  const urlWorkspaceId = params.workspaceId; // numeric id from URL
+  const router = useRouter();
+  const urlWorkspaceId = params.workspaceId;
 
-  const { currentWorkspace, setCurrentWorkspace } = useWorkspaceContext();
+  const { currentWorkspace, workspaces, isLoadingWorkspaces } =
+    useWorkspaceContext();
 
-  // Query server for the workspace matching the URL id
-  const { data: fetchedWorkspace, isLoading: isWorkspaceLoading } =
-    useWorkspace(urlWorkspaceId);
-
-  // Sync server result → context
-  useEffect(() => {
-    if (fetchedWorkspace) {
-      setCurrentWorkspace(fetchedWorkspace);
+  // Resolve the "default" placeholder → the current (or first) workspace's id,
+  // then replace the URL so the rest of the app sees a real id.
+  React.useEffect(() => {
+    if (urlWorkspaceId !== "default") return;
+    if (isLoadingWorkspaces) return;
+    const target = currentWorkspace ?? workspaces[0];
+    if (target) {
+      router.replace(`/workspaces/${target.publicId}/boards`);
+    } else {
+      router.replace("/workspaces");
     }
-  }, [fetchedWorkspace]);
+  }, [urlWorkspaceId, isLoadingWorkspaces, currentWorkspace, workspaces, router]);
 
-  // Loading state
-  if (isWorkspaceLoading) {
+  // Loading state (also while resolving the "default" placeholder)
+  if (isLoadingWorkspaces || urlWorkspaceId === "default") {
     return (
       <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -222,8 +225,8 @@ export default function BoardsPage() {
     );
   }
 
-  // Workspace not found on server
-  if (!fetchedWorkspace) {
+  // Workspace not found in the user's list
+  if (!currentWorkspace) {
     return (
       <div className="m-auto h-full max-w-[1100px] p-8 px-5 md:px-28 md:py-12">
         <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed p-16 text-center">
@@ -237,11 +240,10 @@ export default function BoardsPage() {
     );
   }
 
-  // Has workspace → fetch and render boards
   return (
     <BoardsContent
-      workspaceId={String(fetchedWorkspace.id)}
-      workspaceName={fetchedWorkspace.name}
+      workspaceId={currentWorkspace.publicId}
+      workspaceName={currentWorkspace.name}
     />
   );
 }

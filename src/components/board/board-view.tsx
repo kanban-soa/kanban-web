@@ -2,19 +2,51 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MoreHorizontal, Plus } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  MoreHorizontal,
+  Plus,
+  Tag,
+  UserPlus,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Id } from "@/lib/board/types";
-import { useBoardsManagement } from "@/hooks/use-board";
+import {
+  useBoard,
+  useBoardLists,
+  useBoardLabels,
+  useUpdateBoard,
+  useDeleteBoard,
+  useCreateList,
+  useUpdateList,
+  useDeleteList,
+  useCreateCard,
+  useUpdateCard,
+  useAttachLabelToCard,
+  useDetachLabelFromCard,
+  useAssignMemberToCard,
+  useRemoveMemberFromCard,
+  useSetCardDueDate,
+  useClearCardDueDate,
+} from "@/hooks/use-board";
+import { useMember } from "@/hooks/use-workspaces";
+import type { Card, Label as ApiLabel, MemberRequest } from "@/lib/api/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +57,40 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+type DisplayCard = {
+  id: Id;
+  title: string;
+  description: string;
+  labels: ApiLabel[];
+  memberIds: string[];
+  dueDate: string | null;
+};
+
+function normalizeListTitle<T extends { title?: string; name?: string }>(l: T) {
+  return { ...l, title: l.title ?? l.name ?? "" };
+}
+
+function toDisplayCard(c: Card & { name?: string }): DisplayCard {
+  return {
+    id: String(c.id ?? c.publicId ?? ""),
+    title: c.title ?? c.name ?? "",
+    description: c.description ?? "",
+    labels: c.labels ?? [],
+    memberIds: c.members ?? [],
+    dueDate: c.dueDate ?? null,
+  };
+}
+
+function formatDueDate(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export function BoardView({
   workspaceId,
   boardId,
@@ -32,22 +98,80 @@ export function BoardView({
   workspaceId: Id;
   boardId: Id;
 }) {
-  const {
-    getBoard,
-    getListsForBoard,
-    getcardsForList,
-    isLoading,
-    initBoard,
-    createList,
-    updateList,
-    createcard,
-    deleteList,
-    updateBoard,
-    deleteBoard,
-    updatecard,
-  } = useBoardsManagement(workspaceId);
-  const board = getBoard(boardId);
-  const lists = getListsForBoard(boardId);
+  const { data: board, isLoading: isBoardLoading } = useBoard(
+    workspaceId,
+    boardId,
+  );
+  const { data: rawLists = [], isLoading: isListsLoading } = useBoardLists(
+    workspaceId,
+    boardId,
+  );
+
+  const lists = React.useMemo(
+    () =>
+      rawLists.map((l) => {
+        const normalized = normalizeListTitle(l);
+        const cards = ((l as unknown as { cards?: Card[] }).cards ?? []).map(
+          toDisplayCard,
+        );
+        return { ...normalized, cards };
+      }),
+    [rawLists],
+  );
+
+  const updateBoardMut = useUpdateBoard(workspaceId, boardId);
+  const deleteBoardMut = useDeleteBoard(workspaceId);
+  const createListMut = useCreateList(workspaceId, boardId);
+  const updateListMut = useUpdateList(workspaceId, boardId);
+  const deleteListMut = useDeleteList(workspaceId, boardId);
+  const updateCardMut = useUpdateCard(workspaceId, boardId);
+  const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
+  const detachLabelMut = useDetachLabelFromCard(workspaceId, boardId);
+  const assignMemberMut = useAssignMemberToCard(workspaceId, boardId);
+  const removeMemberMut = useRemoveMemberFromCard(workspaceId, boardId);
+  const setDueDateMut = useSetCardDueDate(workspaceId, boardId);
+  const clearDueDateMut = useClearCardDueDate(workspaceId, boardId);
+
+  const { data: boardLabels = [] } = useBoardLabels(boardId);
+  const { data: workspaceMembers = [] } = useMember(workspaceId);
+
+  const toggleLabelOnCard = React.useCallback(
+    (cardId: Id, label: ApiLabel, isAttached: boolean) => {
+      if (isAttached) {
+        detachLabelMut.mutate({ cardId, labelId: label.id });
+      } else {
+        attachLabelMut.mutate({ cardId, labelId: label.id });
+      }
+    },
+    [attachLabelMut, detachLabelMut],
+  );
+
+  const toggleMemberOnCard = React.useCallback(
+    (cardId: Id, memberPublicId: string, isAssigned: boolean) => {
+      if (isAssigned) {
+        removeMemberMut.mutate({ cardId, memberId: memberPublicId });
+      } else {
+        assignMemberMut.mutate({
+          cardId,
+          workspaceMemberPublicId: memberPublicId,
+        });
+      }
+    },
+    [assignMemberMut, removeMemberMut],
+  );
+
+  const setDueDateOnCard = React.useCallback(
+    (cardId: Id, dueDate: string | null) => {
+      if (dueDate) {
+        setDueDateMut.mutate({ cardId, dueDate });
+      } else {
+        clearDueDateMut.mutate(cardId);
+      }
+    },
+    [setDueDateMut, clearDueDateMut],
+  );
+
+  const isLoading = isBoardLoading || isListsLoading;
 
   const [newListTitle, setNewListTitle] = React.useState("");
   const [isListOpen, setIsListOpen] = React.useState(false);
@@ -61,23 +185,29 @@ export function BoardView({
   React.useEffect(() => {
     if (board) {
       setBoardTitle(board.title);
-      setBoardDescription(board.description);
+      setBoardDescription(board.description ?? "");
     }
   }, [board]);
 
   const handleUpdateBoard = () => {
-    if (board) {
-      updateBoard(board.id, {
-        title: boardTitle,
-        description: boardDescription,
-      });
-      setIsEditModalOpen(false);
-    }
+    if (!board) return;
+    updateBoardMut.mutate(
+      { title: boardTitle, description: boardDescription },
+      {
+        onSuccess: () => setIsEditModalOpen(false),
+        onError: () => toast.error("Failed to update board"),
+      },
+    );
   };
 
   const handleDeleteBoard = () => {
-    deleteBoard(boardId);
-    setIsDeleteModalOpen(false);
+    deleteBoardMut.mutate(boardId, {
+      onSuccess: () => {
+        setIsDeleteModalOpen(false);
+        toast.success("Board deleted");
+      },
+      onError: () => toast.error("Failed to delete board"),
+    });
   };
 
   if (isLoading) {
@@ -101,7 +231,9 @@ export function BoardView({
         <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center justify-between gap-3 px-6 py-4">
             <div className="min-w-0">
-              <div className="truncate text-lg font-semibold tracking-tight">Board not found</div>
+              <div className="truncate text-lg font-semibold tracking-tight">
+                Board not found
+              </div>
             </div>
           </div>
         </div>
@@ -215,8 +347,8 @@ export function BoardView({
           <div>
             <p>
               This action will permanently delete the board{" "}
-              <strong>{board.title}</strong> and all its contents. This
-              cannot be undone.
+              <strong>{board.title}</strong> and all its contents. This cannot
+              be undone.
             </p>
           </div>
           <DialogFooter>
@@ -237,8 +369,8 @@ export function BoardView({
         <div className="flex min-w-full items-start gap-4">
           {lists.length === 0 ? (
             <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">
-              This board has no lists yet. Click <span className="font-medium">Init</span> to
-              create default columns, or add your own list above.
+              This board has no lists yet. Click{" "}
+              <span className="font-medium">Add list</span> to create one.
             </div>
           ) : (
             lists.map((list) => (
@@ -248,11 +380,25 @@ export function BoardView({
                 boardId={boardId}
                 listId={list.id}
                 title={list.title}
-                cards={getcardsForList(list.id)}
-                onAddcard={(t, d) => createcard(boardId, list.id, t, d)}
-                onUpdateList={(newTitle) => updateList(list.id, { title: newTitle })}
-                onDeleteList={() => deleteList(boardId, list.id)}
-                onMoveCard={(cardId, newListId) => updatecard(cardId, { listId: newListId })}
+                cards={list.cards}
+                boardLabels={boardLabels}
+                workspaceMembers={workspaceMembers}
+                onUpdateList={(newTitle) =>
+                  updateListMut.mutate({
+                    listId: list.id,
+                    payload: { name: newTitle },
+                  })
+                }
+                onDeleteList={() => deleteListMut.mutate(list.id)}
+                onMoveCard={(cardId, newListId) =>
+                  updateCardMut.mutate({
+                    cardId,
+                    payload: { targetListId: newListId },
+                  })
+                }
+                onToggleLabel={toggleLabelOnCard}
+                onToggleMember={toggleMemberOnCard}
+                onSetDueDate={setDueDateOnCard}
               />
             ))
           )}
@@ -261,7 +407,10 @@ export function BoardView({
 
       {isListOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/20" onClick={() => setIsListOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/20"
+            onClick={() => setIsListOpen(false)}
+          />
           <div
             role="dialog"
             aria-modal="true"
@@ -278,18 +427,30 @@ export function BoardView({
                 placeholder="List title…"
               />
               <div className="flex justify-end gap-2">
-                <Button variant="outline" type="button" onClick={() => setIsListOpen(false)}>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsListOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button
                   type="button"
+                  disabled={!newListTitle.trim() || createListMut.isPending}
                   onClick={() => {
-                    createList(boardId, newListTitle);
-                    setNewListTitle("");
-                    setIsListOpen(false);
+                    createListMut.mutate(
+                      { name: newListTitle.trim() },
+                      {
+                        onSuccess: () => {
+                          setNewListTitle("");
+                          setIsListOpen(false);
+                        },
+                        onError: () => toast.error("Failed to create list"),
+                      },
+                    );
                   }}
                 >
-                  Create
+                  {createListMut.isPending ? "Creating..." : "Create"}
                 </Button>
               </div>
             </div>
@@ -306,21 +467,35 @@ function ListColumn({
   listId,
   title,
   cards,
-  onAddcard,
+  boardLabels,
+  workspaceMembers,
   onUpdateList,
   onDeleteList,
   onMoveCard,
+  onToggleLabel,
+  onToggleMember,
+  onSetDueDate,
 }: {
   workspaceId: Id;
   boardId: Id;
   listId: Id;
   title: string;
-  cards: { id: Id; title: string; description: string; labels?: { text: string; color: string }[] }[];
-  onAddcard: (title: string, description: string) => void;
+  cards: DisplayCard[];
+  boardLabels: ApiLabel[];
+  workspaceMembers: MemberRequest[];
   onUpdateList: (title: string) => void;
   onDeleteList: () => void;
   onMoveCard: (cardId: Id, newListId: Id) => void;
+  onToggleLabel: (cardId: Id, label: ApiLabel, isAttached: boolean) => void;
+  onToggleMember: (
+    cardId: Id,
+    memberPublicId: string,
+    isAssigned: boolean,
+  ) => void;
+  onSetDueDate: (cardId: Id, dueDate: string | null) => void;
 }) {
+  const createCardMut = useCreateCard(workspaceId, boardId, listId);
+
   const [cardTitle, setcardTitle] = React.useState("");
   const [cardDescription, setcardDescription] = React.useState("");
   const [iscardOpen, setIscardOpen] = React.useState(false);
@@ -329,6 +504,10 @@ function ListColumn({
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [editTitle, setEditTitle] = React.useState(title);
   const [isOver, setIsOver] = React.useState(false);
+
+  React.useEffect(() => {
+    setEditTitle(title);
+  }, [title]);
 
   const handleTitleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -341,10 +520,25 @@ function ListColumn({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setEditTitle(title);
       setIsEditingTitle(false);
     }
+  };
+
+  const handleCreateCard = () => {
+    if (!cardTitle.trim()) return;
+    createCardMut.mutate(
+      { title: cardTitle.trim(), description: cardDescription || undefined },
+      {
+        onSuccess: () => {
+          setcardTitle("");
+          setcardDescription("");
+          setIscardOpen(false);
+        },
+        onError: () => toast.error("Failed to create card"),
+      },
+    );
   };
 
   return (
@@ -370,7 +564,9 @@ function ListColumn({
               {title}
             </div>
           )}
-          <div className="text-xs text-muted-foreground ml-1 mt-0.5">{cards.length} cards</div>
+          <div className="text-xs text-muted-foreground ml-1 mt-0.5">
+            {cards.length} cards
+          </div>
         </div>
         <div className="relative flex items-center gap-1">
           <Button
@@ -422,7 +618,7 @@ function ListColumn({
       <div
         className={cn(
           "space-y-2 p-3 min-h-[100px] transition-colors rounded-b-xl",
-          isOver && "bg-primary/5"
+          isOver && "bg-primary/5",
         )}
         onDragOver={(e) => {
           e.preventDefault();
@@ -439,39 +635,17 @@ function ListColumn({
         }}
       >
         {cards.map((t) => (
-          <Link
+          <CardItem
             key={t.id}
-            href={`/workspaces/${workspaceId}/boards/${boardId}/cards/${t.id}`}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData("cardId", t.id);
-              e.dataTransfer.effectAllowed = "move";
-            }}
-            className="block rounded-lg border bg-card px-3 py-2 text-sm shadow-sm transition hover:bg-muted/40 cursor-pointer"
-          >
-            <div className="font-medium leading-5">{t.title}</div>
-            {t.labels && t.labels.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {t.labels.slice(0, 3).map((label, idx) => (
-                  <span
-                    key={idx}
-                    className="rounded-full px-2 py-0.5 text-[11px] text-white"
-                    style={{ backgroundColor: label.color }}
-                  >
-                    {label.text}
-                  </span>
-                ))}
-                {t.labels.length > 3 ? (
-                  <span className="text-[11px] text-muted-foreground">+{t.labels.length - 3}</span>
-                ) : null}
-              </div>
-            ) : null}
-            {t.description ? (
-              <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                {t.description}
-              </div>
-            ) : null}
-          </Link>
+            workspaceId={workspaceId}
+            boardId={boardId}
+            card={t}
+            boardLabels={boardLabels}
+            workspaceMembers={workspaceMembers}
+            onToggleLabel={onToggleLabel}
+            onToggleMember={onToggleMember}
+            onSetDueDate={onSetDueDate}
+          />
         ))}
       </div>
 
@@ -509,14 +683,10 @@ function ListColumn({
           <DialogFooter>
             <Button
               type="button"
-              onClick={() => {
-                onAddcard(cardTitle, cardDescription);
-                setcardTitle("");
-                setcardDescription("");
-                setIscardOpen(false);
-              }}
+              onClick={handleCreateCard}
+              disabled={createCardMut.isPending}
             >
-              Create
+              {createCardMut.isPending ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -529,14 +699,12 @@ function ListColumn({
           </DialogHeader>
           <div>
             <p>
-              This will remove the list and all its cards. This action cannot be undone.
+              This will remove the list and all its cards. This action cannot be
+              undone.
             </p>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -555,3 +723,260 @@ function ListColumn({
   );
 }
 
+function CardItem({
+  workspaceId,
+  boardId,
+  card,
+  boardLabels,
+  workspaceMembers,
+  onToggleLabel,
+  onToggleMember,
+  onSetDueDate,
+}: {
+  workspaceId: Id;
+  boardId: Id;
+  card: DisplayCard;
+  boardLabels: ApiLabel[];
+  workspaceMembers: MemberRequest[];
+  onToggleLabel: (cardId: Id, label: ApiLabel, isAttached: boolean) => void;
+  onToggleMember: (
+    cardId: Id,
+    memberPublicId: string,
+    isAssigned: boolean,
+  ) => void;
+  onSetDueDate: (cardId: Id, dueDate: string | null) => void;
+}) {
+  const [memberQuery, setMemberQuery] = React.useState("");
+
+  const detailHref = `/workspaces/${workspaceId}/boards/${boardId}/cards/${card.id}`;
+  const memberLabel = (publicId: string) => {
+    const m = workspaceMembers.find((mm) => mm.publicId === publicId);
+    return m?.name ?? m?.email ?? publicId;
+  };
+
+  const filteredMembers = workspaceMembers.filter((m) => {
+    const haystack = (m.name ?? m.email ?? "").toLowerCase();
+    return haystack.includes(memberQuery.trim().toLowerCase());
+  });
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("cardId", card.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      className="group relative rounded-lg border bg-card px-3 py-2 text-sm shadow-sm transition hover:bg-muted/40"
+    >
+      {/* Quick actions — always visible in top-right corner */}
+      <div className="absolute right-2 top-2 flex gap-1">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              type="button"
+              className="size-6 rounded-full bg-background/80 text-muted-foreground hover:bg-muted"
+              title="Labels"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Tag className="size-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-56 p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-1 pb-1 text-xs font-semibold text-muted-foreground">
+              Labels
+            </div>
+            <div className="max-h-48 space-y-0.5 overflow-y-auto">
+              {boardLabels.length === 0 ? (
+                <div className="px-2 py-1 text-xs text-muted-foreground">
+                  No labels yet.
+                </div>
+              ) : (
+                boardLabels.map((label) => {
+                  const isAttached = card.labels.some(
+                    (l) => l.id === label.id,
+                  );
+                  return (
+                    <button
+                      key={label.id}
+                      type="button"
+                      onClick={() =>
+                        onToggleLabel(card.id, label, isAttached)
+                      }
+                      className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-3 rounded-full"
+                          style={{ backgroundColor: label.color }}
+                        />
+                        {label.name}
+                      </span>
+                      {isAttached && (
+                        <Check className="size-4 text-muted-foreground" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              type="button"
+              className="size-6 rounded-full bg-background/80 text-muted-foreground hover:bg-muted"
+              title="Members"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <UserPlus className="size-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-56 p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-1 pb-1 text-xs font-semibold text-muted-foreground">
+              Members
+            </div>
+            <Input
+              value={memberQuery}
+              onChange={(e) => setMemberQuery(e.target.value)}
+              placeholder="Search..."
+              className="mb-2 h-7"
+            />
+            <div className="max-h-48 space-y-0.5 overflow-y-auto">
+              {filteredMembers.length === 0 ? (
+                <div className="px-2 py-1 text-xs text-muted-foreground">
+                  No matches.
+                </div>
+              ) : (
+                filteredMembers.map((m) => {
+                  const isAssigned = card.memberIds.includes(m.publicId);
+                  return (
+                    <button
+                      key={m.publicId}
+                      type="button"
+                      onClick={() =>
+                        onToggleMember(card.id, m.publicId, isAssigned)
+                      }
+                      className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                    >
+                      <span>{m.name ?? m.email}</span>
+                      {isAssigned && (
+                        <Check className="size-4 text-muted-foreground" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              type="button"
+              className="size-6 rounded-full bg-background/80 text-muted-foreground hover:bg-muted"
+              title="Due date"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Calendar className="size-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-56 p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-xs font-semibold text-muted-foreground">
+              Due date
+            </div>
+            <Input
+              type="date"
+              value={card.dueDate ? card.dueDate.slice(0, 10) : ""}
+              onChange={(e) =>
+                onSetDueDate(card.id, e.target.value || null)
+              }
+              className="mt-2 h-8"
+            />
+            {card.dueDate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                className="mt-2 h-7 w-full text-xs"
+                onClick={() => onSetDueDate(card.id, null)}
+              >
+                Clear due date
+              </Button>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Main clickable area: title, labels, members, description */}
+      <Link href={detailHref} className="block cursor-pointer">
+        <div className="font-medium leading-5 pr-14">{card.title}</div>
+        {card.labels.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {card.labels.slice(0, 3).map((label) => (
+              <span
+                key={label.id}
+                className="rounded-full px-2 py-0.5 text-[11px] text-white"
+                style={{ backgroundColor: label.color }}
+              >
+                {label.name}
+              </span>
+            ))}
+            {card.labels.length > 3 && (
+              <span className="text-[11px] text-muted-foreground">
+                +{card.labels.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+        {card.memberIds.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {card.memberIds.slice(0, 4).map((mid) => (
+              <span
+                key={mid}
+                title={memberLabel(mid)}
+                className="inline-flex size-5 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase"
+              >
+                {memberLabel(mid).charAt(0)}
+              </span>
+            ))}
+            {card.memberIds.length > 4 && (
+              <span className="text-[11px] text-muted-foreground">
+                +{card.memberIds.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+        <div className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Calendar className="size-3" />
+          {card.dueDate ? formatDueDate(card.dueDate) : "No due date"}
+        </div>
+        {card.description && (
+          <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+            {card.description}
+          </div>
+        )}
+      </Link>
+    </div>
+  );
+}

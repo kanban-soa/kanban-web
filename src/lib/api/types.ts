@@ -152,3 +152,35 @@ export interface Board {
   deletedBy: string | null;
   allLists?: BoardList[];
 }
+
+export interface BoardList {
+  id: string;
+  publicId?: string;
+  name: string;
+  position: number;
+  boardId: string;
+  createdAt?: string;
+  updatedAt?: string | null;
+}
+
+export interface Card {
+  id: string;
+  publicId?: string;
+  title: string;
+  description?: string | null;
+  listId: string;
+  position?: number;
+  dueDate?: string | null;
+  labels?: Label[];
+  members?: string[];
+  createdAt?: string;
+  updatedAt?: string | null;
+}
+
+export interface Label {
+  id: string;
+  publicId?: string;
+  name: string;
+  color: string;
+  boardId: string;
+}

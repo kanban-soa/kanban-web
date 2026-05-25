@@ -1,69 +1,62 @@
 "use client";
 
-import { createContext, useContext, ReactNode, useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Workspace, WorkspaceContextType } from "@/contexts/context.type";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
+function extractWorkspaceIdFromPath(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const match = pathname.match(/^\/workspaces\/([^/]+)/);
+  const id = match?.[1];
+  if (!id || id === "default") return null;
+  return id;
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const router = useRouter();
   const pathname = usePathname();
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  const { data: workspacesData, isLoading: isWorkspacesLoading } = useWorkspaces();
+  const { data: workspaces = [], isLoading: isLoadingWorkspaces } = useWorkspaces();
+
+  const urlWorkspaceId = useMemo(
+    () => extractWorkspaceIdFromPath(pathname),
+    [pathname],
+  );
+
+  // Remember the most recently selected workspace so routes that don't carry a
+  // workspaceId in the URL (e.g. /member, /statistic) still reflect the user's
+  // last choice instead of snapping back to workspaces[0].
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
   // Reset currentWorkspace if the user transitions from a public/auth page to a protected dashboard page
   useEffect(() => {
-    const publicPaths = ["/", "/login", "/signup", "/forgot-password", "/reset-password"];
-    const wasPublic = publicPaths.includes(prevPathname);
-    const isNowProtected = !publicPaths.includes(pathname);
+    if (urlWorkspaceId) setLastSelectedId(urlWorkspaceId);
+  }, [urlWorkspaceId]);
 
-    if (wasPublic && isNowProtected) {
-      setCurrentWorkspace(null);
-    }
-    setPrevPathname(pathname);
-  }, [pathname, prevPathname]);
+  const currentWorkspace = useMemo<Workspace | null>(() => {
+    if (workspaces.length === 0) return null;
+    const targetId = urlWorkspaceId ?? lastSelectedId;
+    const match = targetId
+      ? workspaces.find((ws) => ws.publicId === targetId)
+      : undefined;
+    return match ?? workspaces[0];
+  }, [workspaces, urlWorkspaceId, lastSelectedId]);
 
-  // Sync workspaces data from React Query
-  useEffect(() => {
-    const publicPaths = ["/", "/login", "/signup", "/forgot-password", "/reset-password"];
-    const isPublicPath = publicPaths.includes(pathname);
-
-    // Don't set workspaces on public paths
-    if (isPublicPath) {
-      setWorkspaces([]);
-      setCurrentWorkspace(null);
-      return;
-    }
-
-    // Update workspaces when React Query data is available
-    if (workspacesData && workspacesData.length > 0) {
-      setWorkspaces(workspacesData);
-      
-      // Check if currentWorkspace still exists in the new workspacesData
-      if (currentWorkspace) {
-        const stillExists = workspacesData.some((ws) => ws.id === currentWorkspace.id);
-        if (!stillExists) {
-          // Current workspace was removed, switch to the first available workspace
-          setCurrentWorkspace(workspacesData[0]);
-        }
-      } else {
-        // No current workspace set, pick the first one
-        setCurrentWorkspace(workspacesData[0]);
+  const setCurrentWorkspace = useCallback(
+    (workspace: Workspace) => {
+      setLastSelectedId(workspace.publicId);
+      if (urlWorkspaceId && urlWorkspaceId !== workspace.publicId) {
+        router.push(`/workspaces/${workspace.publicId}/boards`);
       }
-      // setCurrentWorkspace(workspacesData[0]);
-    } else {
-      // No workspaces available
-      setWorkspaces([]);
-      setCurrentWorkspace(null);
-    }
-  }, [workspacesData, pathname, currentWorkspace]);
+    },
+    [router, urlWorkspaceId],
+  );
 
   return (
     <WorkspaceContext.Provider
-      value={{ currentWorkspace, setCurrentWorkspace, workspaces, setWorkspaces, isLoadingWorkspaces: isWorkspacesLoading }}
+      value={{ currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces: isLoadingWorkspaces }}
     >
       {children}
     </WorkspaceContext.Provider>

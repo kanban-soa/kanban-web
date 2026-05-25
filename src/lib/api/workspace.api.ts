@@ -4,6 +4,7 @@ import type { Workspace, InviteMemberRequest, Invitation, ChangeRoleRequest, Mem
 
 export async function listWorkspaces(): Promise<Workspace[]> {
   const { data } = await api.get<Workspace[] | { data: Workspace[] }>(WORKSPACES.LIST);
+  console.log("[LIB.API.WORKSPACES][7] Fetched workspaces:", JSON.stringify(data));
   return Array.isArray(data) ? data : data.data ?? [];
 }
 
@@ -18,6 +19,29 @@ export async function getWorkspace(id: string): Promise<Workspace> {
 export async function createWorkspace(payload: { name: string; description?: string }): Promise<Workspace> {
   const { data } = await api.post<{ data: Workspace }>(WORKSPACES.CREATE, payload);
   return data.data;
+}
+
+export interface UpdateWorkspaceRequest {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+}
+
+export async function updateWorkspace(
+  id: string,
+  payload: UpdateWorkspaceRequest,
+): Promise<Workspace> {
+  const { data } = await api.patch<{ data: Workspace } | Workspace>(
+    WORKSPACES.UPDATE(id),
+    payload,
+  );
+  return "data" in data && (data as { data: Workspace }).data !== undefined
+    ? (data as { data: Workspace }).data
+    : (data as Workspace);
+}
+
+export async function deleteWorkspace(id: string): Promise<void> {
+  await api.delete(WORKSPACES.DELETE(id));
 }
 
 export async function getMember(workspaceId: string): Promise<MemberRequest[]> {
