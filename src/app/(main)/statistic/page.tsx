@@ -30,6 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMember } from "@/hooks/use-workspaces";
+import { useBoards } from "@/hooks/use-board";
 import {
   useStatisticsSummary,
   useWorkspaceActivities,
@@ -41,6 +43,7 @@ import {
   type StatisticsRange,
 } from "@/lib/api/statistics.api";
 import { Badge } from "@/components/ui/badge";
+import { MemberRequest, Board } from "@/lib/api/types";
 
 const range: StatisticsRange = "30d";
 const emptyPriorities: StatisticsPriority[] = [];
@@ -77,7 +80,15 @@ function buildPrioritySegments(priorities: StatisticsPriority[]) {
   });
 }
 
-function ActivityItem({ activity }: { activity: Activity }) {
+function ActivityItem({
+  activity,
+  members,
+  boards,
+}: {
+  activity: Activity;
+  members: MemberRequest[];
+  boards: Board[];
+}) {
   const dateFormatter = React.useMemo(() => {
     return new Intl.DateTimeFormat("en-US", {
       dateStyle: "medium",
@@ -85,17 +96,58 @@ function ActivityItem({ activity }: { activity: Activity }) {
     });
   }, []);
 
+  const actorName = React.useMemo(() => {
+    if (activity.metadata?.actor?.username) return activity.metadata.actor.username;
+    const member = members.find((m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId);
+    return member?.name || activity.actorUserId;
+  }, [activity, members]);
+
+  const entityName = React.useMemo(() => {
+    // 1. Explicit title in metadata (common for cards)
+    if (activity.metadata?.title) return activity.metadata.title;
+    
+    // 2. Explicit name in metadata (common for boards, especially deletions)
+    if (activity.metadata?.name) return activity.metadata.name;
+    
+    // 3. Board name in metadata (common for board activities or card context)
+    if (activity.metadata?.boardName) return activity.metadata.boardName;
+    
+    // 4. Nested entity title
+    if (activity.metadata?.entity?.title) return activity.metadata.entity.title;
+    
+    // 5. Hook-based resolution for boards
+    if (activity.entityType === "board") {
+      const board = boards.find((b) => b.publicId === activity.entityId || b.id === activity.entityId);
+      return board?.title || activity.entityId;
+    }
+    
+    // 6. Fallback to ID
+    return activity.entityId;
+  }, [activity, boards]);
+
   return (
     <div className="flex items-center gap-4">
       <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
-        {formatInitials(activity.actorUserId)}
+        {formatInitials(actorName)}
       </div>
       <div className="flex-1">
         <p className="text-sm">
-          <span className="font-semibold text-primary">{activity.actorUserId}</span>{" "}
+          <span className="font-semibold text-primary">{actorName}</span>{" "}
           <span className="italic">{activity.actionType}</span> on{" "}
           <span className="font-semibold">{activity.entityType}</span>{" "}
-          <span className="text-muted-foreground">{activity.entityId}</span>
+          <span className="text-muted-foreground">{entityName}</span>
+          {activity.entityType === "card" && activity.metadata?.listName && (
+            <>
+              {" "}
+              in <span className="font-medium">{activity.metadata.listName}</span>
+            </>
+          )}
+          {activity.entityType === "card" && activity.metadata?.boardName && (
+            <>
+              {" "}
+              of <span className="font-medium">{activity.metadata.boardName}</span>
+            </>
+          )}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {dateFormatter.format(new Date(activity.createdAt))}
@@ -117,10 +169,14 @@ export default function StatisticPage() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = React.useState<string | undefined>(
     currentWorkspace?.id
   );
+  const [selectedWorkspacePublicId, setSelectedWorkspacePublicId] = React.useState<string | undefined>(
+    currentWorkspace?.publicId
+  );
 
   React.useEffect(() => {
     if (currentWorkspace) {
       setSelectedWorkspaceId(currentWorkspace.id);
+      setSelectedWorkspacePublicId(currentWorkspace.publicId);
     }
   }, [currentWorkspace]);
 
@@ -136,7 +192,15 @@ export default function StatisticPage() {
       limit: 5,
     });
 
-  const isLoading = isLoadingWorkspaces || isStatsLoading || isActivitiesLoading;
+  const { data: members = [], isLoading: isMembersLoading } = useMember(selectedWorkspaceId ?? "");
+  const { data: boards = [], isLoading: isBoardsLoading } = useBoards(selectedWorkspacePublicId ?? "");
+
+  const isLoading =
+    isLoadingWorkspaces ||
+    isStatsLoading ||
+    isActivitiesLoading ||
+    isMembersLoading ||
+    isBoardsLoading;
   const numberFormatter = React.useMemo(() => new Intl.NumberFormat(), []);
   const percentFormatter = React.useMemo(
     () => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }),
@@ -271,6 +335,7 @@ export default function StatisticPage() {
                     onClick={() => {
                       setCurrentWorkspace(ws);
                       setSelectedWorkspaceId(ws.id);
+                      setSelectedWorkspacePublicId(ws.publicId);
                     }}
                     className="cursor-pointer"
                   >
@@ -417,7 +482,12 @@ export default function StatisticPage() {
                 </div>
               ) : (
                 activities.map((activity) => (
-                  <ActivityItem key={activity.id} activity={activity} />
+                  <ActivityItem
+                    key={activity.id}
+                    activity={activity}
+                    members={members}
+                    boards={boards}
+                  />
                 ))
               )}
             </div>

@@ -67,7 +67,19 @@ export type Activity = {
   actionType: ActivityAction;
   entityType: "card" | "board";
   entityId: string;
-  metadata: Record<string, any>;
+  metadata: {
+    title?: string;
+    name?: string;
+    boardName?: string;
+    listName?: string;
+    actor?: {
+      username?: string;
+    };
+    entity?: {
+      title?: string;
+    };
+    [key: string]: any;
+  };
   createdAt: string;
 };
 
