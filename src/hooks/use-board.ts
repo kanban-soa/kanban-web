@@ -501,8 +501,8 @@ export function useBoardsManagement(workspacePublicId: string) {
   return {
     boards,
     isLoading,
-    createBoard: (title: string, description?: string) =>
-      createBoardMutation.mutateAsync({ title, description }),
+    createBoard: (name: string, description?: string) =>
+      createBoardMutation.mutateAsync({ name, description }),
     deleteBoard: (boardId: string) => deleteBoardMutation.mutateAsync(boardId),
     isCreating: createBoardMutation.isPending,
     isDeleting: deleteBoardMutation.isPending,

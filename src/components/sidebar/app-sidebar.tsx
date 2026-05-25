@@ -58,7 +58,6 @@ const navItems = [
   { title: "Statistic", icon: ChartColumnIncreasing, href: "/statistic" },
   { title: "Members", icon: UsersRound, href: "/member" },
   { title: "Settings", icon: Settings, href: "/settings" },
-  { title: "Invitation", icon: MailIcon, href: "/invitations" },
 ];
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
@@ -211,7 +210,7 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                       }`}
                     >
                       <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs">
-                        {currentWorkspace
+                        {currentWorkspace?.name
                           ? currentWorkspace.name.substring(0, 1).toUpperCase()
                           : "W"}
                       </div>

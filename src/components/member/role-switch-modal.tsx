@@ -18,6 +18,9 @@ interface RoleSwitchModalProps {
 export function RoleSwitchModal({ open, member, roles, selectedRole, onChangeRole, onClose, onConfirm }: RoleSwitchModalProps) {
   if (!open || !member) return null;
 
+  // Use provided roles or default to all WorkspaceRole enum values
+  const availableRoles = roles.length > 0 ? roles : Object.values(WorkspaceRole);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
@@ -41,7 +44,7 @@ export function RoleSwitchModal({ open, member, roles, selectedRole, onChangeRol
               onChange={(e) => onChangeRole(e.target.value as WorkspaceRole)}
               className="w-full px-3 py-2 rounded-lg bg-muted-800 border border-muted-700 text-white text-sm outline-none focus-visible:border-gray-500 focus-visible:ring-2 focus-visible:ring-gray-500/50"
             >
-              {roles.map((role) => (
+              {availableRoles.map((role) => (
                 <option key={role} value={role}>
                   {role.charAt(0).toUpperCase() + role.slice(1)}
                 </option>

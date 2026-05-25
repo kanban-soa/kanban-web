@@ -38,7 +38,7 @@ export function WorkspaceDialog({ open, onOpenChange, mode = "create", workspace
 
   const handleCreate = () => {
     if (!name.trim()) return toast.error("Please provide a workspace name");
-    createWorkspace.mutate(name.trim(), {
+    createWorkspace.mutate({ name: name.trim(), description: description.trim() }, {
       onSuccess: (ws) => {
         toast.success("Workspace created", { description: `"${ws.name}" has been created.` });
         setName("");
@@ -91,7 +91,11 @@ export function WorkspaceDialog({ open, onOpenChange, mode = "create", workspace
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/20" onClick={() => onOpenChange(false)} />
+      <div className="absolute inset-0 bg-black/20" onClick={() => {
+        setName("");
+        setDescription("");
+        onOpenChange(false);
+      }} />
       <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-md rounded-xl border bg-card p-5 shadow-lg">
         <div className="text-base font-semibold">{isEdit ? "Edit Workspace" : "New Workspace"}</div>
         <div className="mt-1 text-xs text-muted-foreground">
@@ -107,7 +111,11 @@ export function WorkspaceDialog({ open, onOpenChange, mode = "create", workspace
             />
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" type="button" onClick={() => {
+              setName("");
+              setDescription("");
+              onOpenChange(false);
+            }}>
               Cancel
             </Button>
             <Button
