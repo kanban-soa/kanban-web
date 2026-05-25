@@ -80,6 +80,8 @@ export function CardDetailPage({
   const { data: workspaceMembers = [] } = useMember(workspaceId);
   const { data: activitiesData } = useWorkspaceActivities(workspaceId, {
     limit: 50,
+    entityType: "card",
+    entityId: card?.publicId ?? String(cardId),
   });
 
   const updateCardMut = useUpdateCard(workspaceId, boardId);
@@ -115,7 +117,9 @@ export function CardDetailPage({
   const cardActivities = React.useMemo(() => {
     if (!activitiesData?.items) return [];
     return activitiesData.items.filter(
-      (a) => a.entityId === cardId || a.entityId === card?.publicId,
+      (a) =>
+        a.entityType === "card" &&
+        (a.entityId === cardId || a.entityId === card?.publicId),
     );
   }, [activitiesData, cardId, card?.publicId]);
 
@@ -343,18 +347,16 @@ export function CardDetailPage({
               {cardLabels.map((label) => (
                 <span
                   key={label.id}
-                  className="inline-flex items-center gap-2 rounded-full border bg-background px-2.5 py-0.5 text-[11px] font-medium shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-white shadow-sm"
+                  style={{ backgroundColor: label.color }}
                 >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: label.color }}
-                  />
                   {label.name}
                   <button
+                    type="button"
+                    className="text-white/80 hover:text-white ml-1"
                     onClick={() => toggleLabel(label)}
-                    className="ml-1 text-muted-foreground hover:text-foreground"
                   >
-                    <X className="h-2.5 w-2.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 </span>
               ))}
@@ -363,32 +365,63 @@ export function CardDetailPage({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 rounded-full px-2.5 text-[11px] font-medium text-muted-foreground"
+                    className="h-7 rounded-full text-xs text-muted-foreground"
                   >
-                    <Plus className="mr-1 h-2.5 w-2.5" /> Add label
+                    <Plus className="mr-1 h-3 w-3" /> Add label
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-56 p-1.5">
-                  <div className="space-y-0.5">
-                    {boardLabels.map((label) => {
-                      const isChecked = cardLabels.some((l) => l.id === label.id);
-                      return (
-                        <button
-                          key={label.id}
-                          className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-muted"
-                          onClick={() => toggleLabel(label)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-1.5 w-1.5 rounded-full"
-                              style={{ backgroundColor: label.color }}
-                            />
-                            <span>{label.name}</span>
-                          </div>
-                          {isChecked && <Check className="h-4 w-4" />}
-                        </button>
-                      );
-                    })}
+                <PopoverContent align="start" className="w-56 p-3">
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold text-muted-foreground">
+                      Edit labels
+                    </div>
+                    <div className="max-h-48 space-y-1 overflow-y-auto">
+                      {boardLabels.map((label) => {
+                        const isChecked = cardLabels.some(
+                          (l) => l.id === label.id,
+                        );
+                        return (
+                          <button
+                            key={label.id}
+                            type="button"
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
+                            onClick={() => toggleLabel(label)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="h-3 w-3 rounded-full"
+                                style={{ backgroundColor: label.color }}
+                              />
+                              <span
+                                className={
+                                  isChecked ? "font-medium" : "font-normal"
+                                }
+                              >
+                                {label.name}
+                              </span>
+                            </div>
+                            {isChecked && (
+                              <Check className="h-4 w-4 text-gray-500" />
+                            )}
+                          </button>
+                        );
+                      })}
+                      {boardLabels.length === 0 && (
+                        <div className="px-2 py-1 text-xs text-muted-foreground">
+                          No available labels. Create one below.
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t pt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-xs text-muted-foreground"
+                        onClick={() => setIsCreateLabelOpen(true)}
+                      >
+                        <Plus className="mr-2 h-4 w-4" /> Create a new label
+                      </Button>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
