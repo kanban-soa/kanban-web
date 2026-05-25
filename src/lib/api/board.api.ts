@@ -74,10 +74,7 @@ function normalizeCard(raw: RawCard, listId?: string): Card {
     labels,
     members: Array.isArray(raw.members)
       ? raw.members.map(String)
-      : Array.isArray(
-            (raw as { assignedWorkspaceMemberPublicIds?: string[] })
-              .assignedWorkspaceMemberPublicIds,
-          )
+      : Array.isArray((raw as { assignedWorkspaceMemberPublicIds?: string[] }).assignedWorkspaceMemberPublicIds,)
         ? (raw as { assignedWorkspaceMemberPublicIds: string[] })
             .assignedWorkspaceMemberPublicIds
         : raw.members,
@@ -399,13 +396,14 @@ export async function assignMemberToCard(
   cardId: string,
   workspaceMemberPublicId: string,
 ): Promise<void> {
-  await api.post(CARDS.ASSIGN_MEMBER(cardId), { workspaceMemberPublicId });
+  await api.post(CARDS.ASSIGN_MEMBER(cardId), { 'workspaceMemberPublicId': workspaceMemberPublicId });
 }
 
 export async function removeMemberFromCard(
   cardId: string,
   memberId: string,
 ): Promise<void> {
+  console.log(`Removing member ${memberId} from card ${cardId}`)
   await api.delete(CARDS.REMOVE_MEMBER(cardId, memberId));
 }
 

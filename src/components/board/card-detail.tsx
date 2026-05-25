@@ -14,7 +14,8 @@ import {
   ArrowUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
+import { Calendar as UICalendar } from "@/components/ui/calendar";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ import {
   useRemoveMemberFromCard,
 } from "@/hooks/use-board";
 import { useMember, useWorkspace } from "@/hooks/use-workspaces";
+import { useWorkspaceContext } from "@/contexts/workspace.context";
 import { useWorkspaceActivities } from "@/hooks/use-statistics";
 import type { Label as ApiLabel } from "@/lib/api/types";
 import {
@@ -99,10 +101,14 @@ export function CardDetailPage({
   const { data: rawLists = [] } = useBoardLists(workspaceId, boardId);
   const { data: boardLabels = [] } = useBoardLabels(boardId);
   const { data: workspaceMembers = [] } = useMember(workspaceId);
-  const { data: activitiesData } = useWorkspaceActivities(workspaceId, {
+  const { currentWorkspace } = useWorkspaceContext();
+  const workspaceContextId = currentWorkspace?.id
+    ? String(currentWorkspace.id)
+    : undefined;
+  const { data: activitiesData } = useWorkspaceActivities(workspaceContextId, {
     limit: 50,
     entityType: "card",
-    entityId: card?.publicId ?? String(cardId),
+    entityId: String(cardId),
   });
 
   const createLabelMut = useCreateLabel(boardId);
@@ -136,16 +142,13 @@ export function CardDetailPage({
     [card?.members],
   );
 
-  console.log(`Card Member: ${JSON.stringify(card)}`)
-
   const cardActivities = React.useMemo(() => {
     if (!activitiesData?.items) return [];
+    const internalId = String(cardId);
     return activitiesData.items.filter(
-      (a) =>
-        a.entityType === "card" &&
-        (a.entityId === cardId || a.entityId === card?.publicId),
+      (a) => a.entityType === "card" && a.entityId === internalId,
     );
-  }, [activitiesData, cardId, card?.publicId]);
+  }, [activitiesData, cardId]);
 
   const [title, setTitle] = React.useState(card?.title ?? "");
   const [description, setDescription] = React.useState(card?.description ?? "");
@@ -154,7 +157,6 @@ export function CardDetailPage({
   const [dueDate, setDueDate] = React.useState(card?.dueDate ?? "");
   const [labelInput, setLabelInput] = React.useState("");
   const [labelColor, setLabelColor] = React.useState("#3b82f6");
-  const [memberInput, setMemberInput] = React.useState("");
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = React.useState(false);
 
@@ -213,19 +215,16 @@ export function CardDetailPage({
   };
 
   const memberLabel = (publicId: string): string => {
-    const member = workspaceMembers.find((m) => m.publicId === publicId);
-    const name = member?.name?.trim();
+    const member = workspaceMembers.find((m) => String(m.id) === publicId);
     const email = member?.email?.trim();
-    return name || email || publicId || "Member";
+    const shortEmail = email ? email.split("@")[0] : "";
+    return shortEmail || member?.name?.trim() || email || publicId || "Member";
   };
 
   const memberInitial = (publicId: string) =>
     memberLabel(publicId).charAt(0).toUpperCase() || "?";
 
-  const filteredMembers = workspaceMembers.filter((m) => {
-    const haystack = (m.name ?? m.email ?? "").toLowerCase();
-    return haystack.includes(memberInput.trim().toLowerCase());
-  });
+  const filteredMembers = workspaceMembers;
 
   if (isCardLoading) {
     return (
@@ -386,30 +385,31 @@ export function CardDetailPage({
         </div>
 
         {/* Sidebar */}
-        <div className="border-l bg-muted/[0.03] px-6 py-6 space-y-6 text-[13px]">
-          <div className="grid grid-cols-[80px_1fr] items-baseline gap-2">
+        <div className="border-l bg-muted/[0.03] px-8 py-8 space-y-8 text-[13px]">
+          <div className="grid grid-cols-[72px_1fr] items-center gap-3">
             <div className="text-muted-foreground">List</div>
-            <div className="font-medium">{lists.find((l) => l.id === listId || l.id === card?.list?.publicId)?.title || "Unknown" }</div>
+            <div className="font-medium text-foreground">
+              {lists.find((l) => l.id === listId || l.id === card?.list?.publicId)
+                ?.title || "Unknown"}
+            </div>
           </div>
 
-          <div className="grid grid-cols-[80px_1fr] items-start gap-2">
+          <div className="grid grid-cols-[72px_1fr] items-start gap-3">
             <div className="text-muted-foreground pt-1">Labels</div>
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
               {cardLabels.map((label) => (
-                <span
+                <button
                   key={label.id}
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-white shadow-sm"
-                  style={{ backgroundColor: label.color }}
+                  type="button"
+                  onClick={() => toggleLabel(label)}
+                  className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs text-foreground shadow-sm hover:bg-muted/40"
                 >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: label.color }}
+                  />
                   {label.name}
-                  <button
-                    type="button"
-                    className="text-white/80 hover:text-white ml-1"
-                    onClick={() => toggleLabel(label)}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
+                </button>
               ))}
               <Popover>
                 <PopoverTrigger asChild>
@@ -481,78 +481,112 @@ export function CardDetailPage({
             <div className="text-muted-foreground pt-2">Members</div>
             <div className="flex flex-wrap items-center gap-2">
               {cardMemberIds.map((memberId) => (
-                <span
+                <div
                   key={memberId}
-                  className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs shadow-sm"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border bg-background text-[11px] font-semibold text-muted-foreground"
+                  title={memberLabel(memberId)}
                 >
-                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase">
-                    {memberInitial(memberId)}
-                  </div>
-                  {memberLabel(memberId)}
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground ml-1"
-                    onClick={() => toggleMember(memberId)}
-                    aria-label={`Remove ${memberLabel(memberId)} from card`}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
+                  {memberInitial(memberId)}
+                </div>
               ))}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-7 w-7 rounded-full border-dashed"
+                    className="h-8 w-8 rounded-full border-dashed"
+                    aria-label="Add member"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-56 p-1.5">
-                  <Input
-                    value={memberInput}
-                    onChange={(e) => setMemberInput(e.target.value)}
-                    placeholder="Find members..."
-                    className="mb-1.5 h-7 text-[11px]"
-                  />
+                <PopoverContent align="start" className="w-56 p-2">
                   <div className="space-y-0.5">
-                    {filteredMembers.map((m) => {
-                      const isChecked = cardMemberIds.includes(m.publicId);
-                      return (
-                        <button
-                          key={m.publicId}
-                          className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-muted"
-                          onClick={() => toggleMember(m.publicId)}
-                        >
-                          <span>{m.name || m.email}</span>
-                          {isChecked && <Check className="h-4 w-4" />}
-                        </button>
-                      );
-                    })}
+                    {filteredMembers.length === 0 ? (
+                      <div className="px-2 py-1 text-xs text-muted-foreground">
+                        No members.
+                      </div>
+                    ) : (
+                      filteredMembers.map((m) => {
+                        const memberId = String(m.id);
+                        const isChecked = cardMemberIds.includes(memberId);
+                        return (
+                          <button
+                            key={memberId}
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+                            onClick={() => toggleMember(memberId)}
+                          >
+                            <span
+                              className={
+                                "flex h-4 w-4 items-center justify-center rounded border " +
+                                (isChecked
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground/40")
+                              }
+                            >
+                              {isChecked && (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded-full bg-muted-foreground/20 text-[10px] flex items-center justify-center">
+                                {memberInitial(memberId)}
+                              </div>
+                              <span className="text-foreground">
+                                {memberLabel(memberId)}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                    <button
+                      type="button"
+                      className="mt-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Invite member
+                    </button>
                   </div>
                 </PopoverContent>
               </Popover>
             </div>
           </div>
 
-          <div className="grid grid-cols-[80px_1fr] items-baseline gap-2">
+          <div className="grid grid-cols-[72px_1fr] items-center gap-3">
             <div className="text-muted-foreground">Due date</div>
-            <div>
-              <Input
-                type="date"
-                value={dueDate ? dueDate.slice(0, 10) : ""}
-                onChange={handleDueDateChange}
-                className="h-auto p-0 border-none bg-transparent text-[13px] font-medium focus-visible:ring-0 cursor-pointer hover:underline"
-              />
+            <div className="relative">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="h-8 w-full bg-transparent text-[13px] font-medium text-left focus:outline-none hover:underline">
+                    {dueDate ? format(new Date(dueDate), "MMMM d, yyyy") : "Set due date"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0 border-none shadow-2xl">
+                  <UICalendar
+                    mode="single"
+                    selected={dueDate ? new Date(dueDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const isoDate = date.toISOString();
+                        setDueDate(isoDate);
+                        setDueDateMut.mutate({ cardId, dueDate: isoDate });
+                      } else {
+                        setDueDate("");
+                        clearDueDateMut.mutate(cardId);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
-          <div className="pt-6 flex flex-col gap-2">
+          <div className="pt-4">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="justify-start text-destructive hover:text-destructive hover:bg-destructive/10 border-none px-0 h-auto text-[13px]"
+              className="justify-start text-destructive hover:text-destructive hover:bg-destructive/10 px-0"
               onClick={() => setIsDeleteOpen(true)}
             >
               <Trash2 className="mr-2 h-3.5 w-3.5" />
