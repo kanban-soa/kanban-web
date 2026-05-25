@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 const TOKEN_KEY = "kanban:token";
 
@@ -33,10 +34,20 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      removeToken();
-      if (typeof window !== "undefined" && window.location.pathname !== "/") {
-        window.location.href = "/";
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 502) {
+        if (typeof window !== "undefined") {
+          toast.error("Service unavailable", {
+            description:
+              "The requesting service is down. Please try again shortly.",
+          });
+        }
+      }
+      if (error.response?.status === 401) {
+        removeToken();
+        if (typeof window !== "undefined" && window.location.pathname !== "/") {
+          window.location.href = "/";
+        }
       }
     }
     return Promise.reject(error);

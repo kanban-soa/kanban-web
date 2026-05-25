@@ -749,10 +749,15 @@ function CardItem({
   const [memberQuery, setMemberQuery] = React.useState("");
 
   const detailHref = `/workspaces/${workspaceId}/boards/${boardId}/cards/${card.id}`;
-  const memberLabel = (publicId: string) => {
-    const m = workspaceMembers.find((mm) => mm.publicId === publicId);
-    return m?.name ?? m?.email ?? publicId;
+  const memberLabel = (publicId: string): string => {
+    const m = workspaceMembers.find((mm) => String(mm.id) === publicId);
+    const email = m?.email?.trim();
+    const shortEmail = email ? email.split("@")[0] : "";
+    return shortEmail || m?.name?.trim() || email || publicId || "Member";
   };
+
+  const memberInitial = (publicId: string) =>
+    memberLabel(publicId).charAt(0).toUpperCase() || "?";
 
   const filteredMembers = workspaceMembers.filter((m) => {
     const haystack = (m.name ?? m.email ?? "").toLowerCase();
@@ -862,17 +867,18 @@ function CardItem({
                 </div>
               ) : (
                 filteredMembers.map((m) => {
-                  const isAssigned = card.memberIds.includes(m.publicId);
+                  const memberId = String(m.id);
+                  const isAssigned = card.memberIds.includes(memberId);
                   return (
                     <button
-                      key={m.publicId}
+                      key={memberId}
                       type="button"
                       onClick={() =>
-                        onToggleMember(card.id, m.publicId, isAssigned)
+                        onToggleMember(card.id, memberId, isAssigned)
                       }
                       className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
                     >
-                      <span>{m.name ?? m.email}</span>
+                      <span>{memberLabel(memberId)}</span>
                       {isAssigned && (
                         <Check className="size-4 text-muted-foreground" />
                       )}
@@ -957,7 +963,7 @@ function CardItem({
                 title={memberLabel(mid)}
                 className="inline-flex size-5 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase"
               >
-                {memberLabel(mid).charAt(0)}
+                {memberInitial(mid)}
               </span>
             ))}
             {card.memberIds.length > 4 && (

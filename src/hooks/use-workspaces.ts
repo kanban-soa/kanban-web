@@ -61,7 +61,7 @@ export function useInviteMember(workspaceId: string) {
 
 export function useMember(workspaceId: string) {
   return useQuery({
-    queryKey: ["workspaces", workspaceId],
+    queryKey: ["workspaces", workspaceId, "members"],
     queryFn: () => getMember(workspaceId),
     enabled: !!workspaceId,
   });

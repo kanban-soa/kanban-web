@@ -100,6 +100,7 @@ type PagedActivityRequest = {
   limit?: number;
   actionType?: string;
   entityType?: "card" | "board";
+  entityId?: string;
   actorUserId?: string;
   from?: string;
   to?: string;

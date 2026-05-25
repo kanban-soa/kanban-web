@@ -14,6 +14,7 @@ import { useWorkspaceContext } from "@/contexts/workspace.context";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Bell,
   CheckCircle2,
   Clock3,
@@ -45,7 +46,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MemberRequest, Board } from "@/lib/api/types";
 
-const range: StatisticsRange = "30d";
 const emptyPriorities: StatisticsPriority[] = [];
 
 function formatInitials(value: string) {
@@ -172,6 +172,7 @@ export default function StatisticPage() {
   const [selectedWorkspacePublicId, setSelectedWorkspacePublicId] = React.useState<string | undefined>(
     currentWorkspace?.publicId
   );
+  const [range, setRange] = React.useState<StatisticsRange>("30d");
 
   React.useEffect(() => {
     if (currentWorkspace) {
@@ -216,24 +217,6 @@ export default function StatisticPage() {
     [priorities],
   );
 
-  const WORKSPACES_PER_PAGE = 5;
-  const [workspacePage, setWorkspacePage] = React.useState(0);
-  const totalPages = Math.max(
-    1,
-    Math.ceil(workspaces.length / WORKSPACES_PER_PAGE),
-  );
-
-  React.useEffect(() => {
-    if (workspacePage >= totalPages) {
-      setWorkspacePage(Math.max(0, totalPages - 1));
-    }
-  }, [workspacePage, totalPages]);
-
-  const paginatedWorkspaces = workspaces.slice(
-    workspacePage * WORKSPACES_PER_PAGE,
-    (workspacePage + 1) * WORKSPACES_PER_PAGE,
-  );
-
 
   if (isLoadingWorkspaces && (!workspaces || workspaces.length === 0)) {
     return (
@@ -249,22 +232,16 @@ export default function StatisticPage() {
 
   const metricCards = [
     {
-      title: "Completed",
-      value: metrics?.completed,
-      trend: metrics?.completedTrend,
-      icon: CheckCircle2,
+      title: "Created",
+      value: metrics?.created,
+      trend: metrics?.createdTrend,
+      icon: PlusCircle,
     },
     {
       title: "Updated",
       value: metrics?.updated,
       trend: metrics?.updatedTrend,
       icon: Clock3,
-    },
-    {
-      title: "Created",
-      value: metrics?.created,
-      trend: metrics?.createdTrend,
-      icon: PlusCircle,
     },
     {
       title: "Due Soon",
@@ -312,80 +289,61 @@ export default function StatisticPage() {
       <div className="mx-auto max-w-7xl space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black">Statistics</h1>
-            <p className="text-sm text-muted-foreground">Overview for the last 30 days</p>
+            <h1 className="text-2xl text-muted-foreground">
+              Statistic overview from{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-black text-primary hover:opacity-80 transition-opacity inline-flex items-center gap-1 focus:outline-none">
+                    {currentWorkspace?.name}
+                    <ChevronDown className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {workspaces.map((ws) => (
+                      <DropdownMenuItem
+                        key={ws.publicId}
+                        onClick={() => {
+                          setCurrentWorkspace(ws);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
+                          {ws.name.substring(0, 1).toUpperCase()}
+                        </div>
+                        <span className="flex-1 truncate">{ws.name}</span>
+                        {currentWorkspace?.publicId === ws.publicId && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ✓
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>{" "}
+              workspace
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              for the{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-medium text-foreground hover:opacity-80 transition-opacity inline-flex items-center gap-0.5 focus:outline-none">
+                    {range === "7d" ? "last 7 days" : range === "30d" ? "last 30 days" : "last 90 days"}
+                    <ChevronDown className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-40">
+                  <DropdownMenuItem onClick={() => setRange("7d")}>last 7 days</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRange("30d")}>last 30 days</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRange("90d")}>last 90 days</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="min-w-48">
-                  {currentWorkspace?.name ?? "Select a workspace"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="right"
-                align="start"
-                className="w-56"
-              >
-                <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {paginatedWorkspaces.map((ws) => (
-                  <DropdownMenuItem
-                    key={ws.publicId}
-                    onClick={() => {
-                      setCurrentWorkspace(ws);
-                      setSelectedWorkspaceId(ws.id);
-                      setSelectedWorkspacePublicId(ws.publicId);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
-                      {ws.name.substring(0, 1).toUpperCase()}
-                    </div>
-                    <span className="flex-1">{ws.name}</span>
-                    {currentWorkspace?.publicId === ws.publicId && (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        ✓
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <div className="flex items-center justify-between px-2 py-1.5">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setWorkspacePage((p) => Math.max(0, p - 1));
-                    }}
-                    disabled={workspacePage === 0}
-                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
-                    aria-label="Previous page"
-                  >
-                    <ChevronLeft className="size-4" />
-                  </button>
-                  <span className="text-xs text-muted-foreground">
-                    {workspacePage + 1} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setWorkspacePage((p) =>
-                        Math.min(totalPages - 1, p + 1),
-                      );
-                    }}
-                    disabled={workspacePage >= totalPages - 1}
-                    className="inline-flex size-7 items-center justify-center rounded-md hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
-                    aria-label="Next page"
-                  >
-                    <ChevronRight className="size-4" />
-                  </button>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
             <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
               <Button asChild size="sm" variant="secondary">
                 <Link href="/statistic">Team</Link>
