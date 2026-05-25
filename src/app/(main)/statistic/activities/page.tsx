@@ -10,7 +10,9 @@ import {
   ChevronsRight,
 } from "lucide-react";
 
-import { useWorkspaces } from "@/hooks/use-workspaces";
+import { useMember } from "@/hooks/use-workspaces";
+import { useWorkspaceContext } from "@/contexts/workspace.context";
+import { useBoards } from "@/hooks/use-board";
 import { useWorkspaceActivities } from "@/hooks/use-statistics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Activity } from "@/lib/api/statistics.api";
 import { Badge } from "@/components/ui/badge";
+import { MemberRequest, Board } from "@/lib/api/types";
 
 const PAGE_SIZE = 10;
 
@@ -35,7 +38,15 @@ function formatInitials(value: string) {
   return value.slice(0, 2).toUpperCase();
 }
 
-function ActivityItem({ activity }: { activity: Activity }) {
+function ActivityItem({
+  activity,
+  members,
+  boards,
+}: {
+  activity: Activity;
+  members: MemberRequest[];
+  boards: Board[];
+}) {
   const dateFormatter = React.useMemo(() => {
     return new Intl.DateTimeFormat("en-US", {
       dateStyle: "medium",
@@ -43,17 +54,58 @@ function ActivityItem({ activity }: { activity: Activity }) {
     });
   }, []);
 
+  const actorName = React.useMemo(() => {
+    if (activity.metadata?.actor?.username) return activity.metadata.actor.username;
+    const member = members.find((m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId);
+    return member?.name || activity.actorUserId;
+  }, [activity, members]);
+
+  const entityName = React.useMemo(() => {
+    // 1. Explicit title in metadata (common for cards)
+    if (activity.metadata?.title) return activity.metadata.title;
+    
+    // 2. Explicit name in metadata (common for boards, especially deletions)
+    if (activity.metadata?.name) return activity.metadata.name;
+    
+    // 3. Board name in metadata (common for board activities or card context)
+    if (activity.metadata?.boardName) return activity.metadata.boardName;
+    
+    // 4. Nested entity title
+    if (activity.metadata?.entity?.title) return activity.metadata.entity.title;
+    
+    // 5. Hook-based resolution for boards
+    if (activity.entityType === "board") {
+      const board = boards.find((b) => b.publicId === activity.entityId || b.id === activity.entityId);
+      return board?.title || activity.entityId;
+    }
+    
+    // 6. Fallback to ID
+    return activity.entityId;
+  }, [activity, boards]);
+
   return (
     <div className="flex items-center gap-4">
       <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
-        {formatInitials(activity.actorUserId)}
+        {formatInitials(actorName)}
       </div>
       <div className="flex-1">
         <p className="text-sm">
-          <span className="font-semibold text-primary">{activity.actorUserId}</span>{" "}
+          <span className="font-semibold text-primary">{actorName}</span>{" "}
           <span className="italic">{activity.actionType}</span> on{" "}
           <span className="font-semibold">{activity.entityType}</span>{" "}
-          <span className="text-muted-foreground">{activity.entityId}</span>
+          <span className="text-muted-foreground">{entityName}</span>
+          {activity.entityType === "card" && activity.metadata?.listName && (
+            <>
+              {" "}
+              in <span className="font-medium">{activity.metadata.listName}</span>
+            </>
+          )}
+          {activity.entityType === "card" && activity.metadata?.boardName && (
+            <>
+              {" "}
+              of <span className="font-medium">{activity.metadata.boardName}</span>
+            </>
+          )}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {dateFormatter.format(new Date(activity.createdAt))}
@@ -67,8 +119,12 @@ function ActivityItem({ activity }: { activity: Activity }) {
 export default function ActivityLogPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: workspaces, isLoading: isWorkspaceLoading } = useWorkspaces();
-  const workspaceId = workspaces?.[0]?.id;
+  const { currentWorkspace, isLoadingWorkspaces } = useWorkspaceContext();
+  const workspaceId = currentWorkspace?.id;
+  const workspacePublicId = currentWorkspace?.publicId;
+
+  const { data: members = [], isLoading: isMembersLoading } = useMember(workspaceId?.toString() ?? "");
+  const { data: boards = [], isLoading: isBoardsLoading } = useBoards(workspacePublicId ?? "");
 
   const page = searchParams.get("page") ? Number(searchParams.get("page")) : 1;
   const limit = searchParams.get("limit") ? Number(searchParams.get("limit")) : PAGE_SIZE;
@@ -77,12 +133,16 @@ export default function ActivityLogPage() {
     data: activitiesData,
     isLoading: isActivitiesLoading,
     isError,
-  } = useWorkspaceActivities(workspaceId, {
+  } = useWorkspaceActivities(workspaceId?.toString(), {
     page,
     limit,
   });
 
-  const isLoading = isWorkspaceLoading || isActivitiesLoading;
+  const isLoading =
+    isLoadingWorkspaces ||
+    isActivitiesLoading ||
+    isMembersLoading ||
+    isBoardsLoading;
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -126,7 +186,12 @@ export default function ActivityLogPage() {
                 </div>
               ))
             : activitiesData?.items.map((activity) => (
-                <ActivityItem key={activity.id} activity={activity} />
+                <ActivityItem
+                  key={activity.id}
+                  activity={activity}
+                  members={members}
+                  boards={boards}
+                />
               ))}
         </div>
 
