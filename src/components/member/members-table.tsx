@@ -1,22 +1,24 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MoreVertical, LogOut, Shield } from "lucide-react";
-import type { MemberRequest } from "@/lib/api/types";
+import { LogOut, Shield } from "lucide-react";
+import type { MemberRequest, User } from "@/lib/api/types";
 import { WorkspaceRole } from "@/lib/api/types";
 import { useRemoveMember, useChangeRoleMember } from "@/hooks/use-workspaces";
-import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import RoleSwitchModal from "@/components/member/role-switch-modal";
 import RemoveMemberModal from "@/components/member/remove-member-modal";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 interface MembersTableProps {
-  members?: MemberRequest[];
+  members: MemberRequest[];
   workspaceId: string;
+  isAdminOfWorkspace: boolean;
 }
 
 function getInitials(name: string | undefined): string {
@@ -28,14 +30,35 @@ function getInitials(name: string | undefined): string {
     .toUpperCase();
 }
 
-export function MembersTable({ members, workspaceId }: MembersTableProps) {
-  const [isDeactivateOpen, setIsDeactivateOpen] = React.useState(false);
-  const [isRoleSwitchOpen, setIsRoleSwitchOpen] = React.useState(false);
-  const [selectedMember, setSelectedMember] = React.useState<MemberRequest | null>(null);
-  const [selectedRole, setSelectedRole] = React.useState<WorkspaceRole>(WorkspaceRole.MEMBER);
+export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: MembersTableProps) {
+  const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
+  const [isRoleSwitchOpen, setIsRoleSwitchOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberRequest | null>(null);
+  const [selectedRole, setSelectedRole] = useState<WorkspaceRole>(WorkspaceRole.MEMBER);
+  const [user, setUser] = useState<User | null>(null);
 
   const removeMemberMutation = useRemoveMember(workspaceId);
   const changeRoleMutation = useChangeRoleMember(workspaceId, String(selectedMember?.userId ?? ""));
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  // Load user from localStorage on client side
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error("Failed to parse user from localStorage", e);
+        setUser(null);
+      }
+    }
+  }, []);
+
+  // Check user if not found or invalid, navigate to login page
+  if (!user) {
+    return null;
+  }
 
   const handleDeactivate = (member: MemberRequest) => {
     setSelectedMember(member);
@@ -57,6 +80,16 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
           });
           setIsDeactivateOpen(false);
           setSelectedMember(null);
+          
+          // If the user removed themselves, invalidate workspaces and redirect
+          if (user.id === selectedMember.userId) {
+            // Invalidate workspaces query to refresh the list
+            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+            // Redirect to workspaces after a short delay to allow toast to show
+            setTimeout(() => {
+              router.push("/workspaces");
+            }, 500);
+          }
         },
         onError: (error: any) => {
           const status = error?.response?.status;
@@ -165,7 +198,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
             <div className="flex items-center">
               <Badge
                 variant={
-                  member.role === WorkspaceRole.OWNER
+                  member.role === WorkspaceRole.ADMIN
                     ? "default"
                     : member.role === WorkspaceRole.MEMBER
                       ? "secondary"
@@ -194,26 +227,32 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleRoleSwitch(member)}
-                className="h-8 px-2 text-xs gap-1"
-                title="Change role"
-              >
-                <Shield className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Role</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeactivate(member)}
-                className="h-8 px-2 text-xs gap-1 hover:bg-red-950 hover:border-red-700"
-                title="Deactivate member"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Remove</span>
-              </Button>
+              {/* Show Role button if user is admin or changing own role */}
+              {isAdminOfWorkspace && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRoleSwitch(member)}
+                  className="h-8 px-2 text-xs gap-1"
+                  title="Change role"
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Role</span>
+                </Button>
+              )}
+              {/* Show Leave button if user is admin or it's their own row */}
+              {(isAdminOfWorkspace || user?.id === member.userId) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeactivate(member)}
+                  className="h-8 px-2 text-xs gap-1 hover:bg-red-950 hover:border-red-700"
+                  title="Remove member"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Leave</span>
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -229,7 +268,7 @@ export function MembersTable({ members, workspaceId }: MembersTableProps) {
       <RoleSwitchModal
         open={isRoleSwitchOpen}
         member={selectedMember}
-        roles={[] as WorkspaceRole[]}
+        roles={Object.values(WorkspaceRole)}
         selectedRole={selectedRole}
         onChangeRole={(r) => setSelectedRole(r)}
         onClose={() => setIsRoleSwitchOpen(false)}

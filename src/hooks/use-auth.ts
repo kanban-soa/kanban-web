@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { login, register, logout, listAccounts, updateUser, getUser } from "@/lib/api/auth.api";
-import type { Account } from "@/lib/api/types";
+import type { Account, User } from "@/lib/api/types";
+import { useEffect, useState } from "react";
 
 export function useLogin() {
   const router = useRouter();
@@ -53,4 +54,23 @@ export function useUpdateUser() {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
     },
   });
+}
+
+
+// Custom hook to get authenticated user from localStorage
+// Returns null if user is not authenticated or if there is an error parsing the user data
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  useEffect(() => {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          setUser(JSON.parse(userStr));
+        } catch (e) {
+          console.error("Failed to parse user from localStorage", e);
+          setUser(null);
+        }
+      }
+    }, []);
+    return user;
 }

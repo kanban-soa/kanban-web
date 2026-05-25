@@ -30,6 +30,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // last choice instead of snapping back to workspaces[0].
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 
+  // Reset currentWorkspace if the user transitions from a public/auth page to a protected dashboard page
   useEffect(() => {
     if (urlWorkspaceId) setLastSelectedId(urlWorkspaceId);
   }, [urlWorkspaceId]);
@@ -55,7 +56,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   return (
     <WorkspaceContext.Provider
-      value={{ currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces }}
+      value={{ currentWorkspace, setCurrentWorkspace, workspaces, isLoadingWorkspaces: isLoadingWorkspaces }}
     >
       {children}
     </WorkspaceContext.Provider>

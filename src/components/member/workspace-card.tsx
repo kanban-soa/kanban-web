@@ -18,7 +18,6 @@ export function WorkspaceCard({
   initials = "DC",
   title = "Design Collective",
   description = "Collaborate on design projects and brand assets",
-  onSwitchWorkspace,
 }: WorkspaceCardProps) {
   return (
     <div className="rounded-xl bg-muted-900 border border-black shadow-lg p-6 space-y-6">

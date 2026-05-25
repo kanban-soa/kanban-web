@@ -4,9 +4,7 @@
 
 export enum WorkspaceRole {
   ADMIN = "admin",
-  MEMBER = "member",
-  OWNER = "owner",
-  OBSERVER = "observer"
+  MEMBER = "member"
 }
 
 export enum MemberStatus {
@@ -14,6 +12,18 @@ export enum MemberStatus {
   INVITED = "invited",
   REMOVED = "removed",
   CANCELLED = "cancelled"
+}
+
+export interface User {
+  id: string;
+  publicId: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  image: string | null;
+  role: WorkspaceRole;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Workspace {
@@ -77,15 +87,70 @@ export interface ChangeRoleRequest {
   role: WorkspaceRole;
 };
 
-export interface Board {
-  id: string;
+export interface BoardLabel {
+  id: number;
+  publicId: string;
+  name: string;
+  colourCode: string;
+  boardId: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  importId: string | null;
+}
+
+export interface BoardCard {
+  id: number;
   publicId: string;
   title: string;
-  description?: string | null;
-  workspaceId: string;
-  createdBy?: string;
-  createdAt?: string;
-  updatedAt?: string | null;
+  description: string | null;
+  index: number;
+  listId: number;
+  boardId?: number;
+  dueDate: string | null;
+  importId: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  labels: Array<{ cardId: number; labelId: number; label: BoardLabel }>;
+}
+
+export interface BoardList {
+  id: number;
+  publicId: string;
+  name: string;
+  index: number;
+  boardId: number;
+  importId: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  cards: BoardCard[];
+}
+
+export interface Board {
+  id: number;
+  publicId: string;
+  name: string;
+  description: string | null;
+  slug: string;
+  workspaceId: number;
+  visibility: "public" | "private";
+  type: "regular" | string;
+  sourceBoardId: number | null;
+  importId: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  allLists?: BoardList[];
 }
 
 export interface BoardList {
