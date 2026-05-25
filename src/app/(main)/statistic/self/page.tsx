@@ -2,34 +2,35 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
+import { AlertTriangle, CheckCircle2, TrendingUp, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useWorkspaces } from "@/hooks/use-workspaces";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useWorkspaceContext } from "@/contexts/workspace.context";
 import { useStatisticsSelfPerformance } from "@/hooks/use-statistics";
 import type { StatisticsRange } from "@/lib/api/statistics.api";
-
-const ranges: StatisticsRange[] = ["7d", "30d", "90d"];
 
 function clampPercentage(value: number) {
   return Math.min(100, Math.max(0, value));
 }
 
-function formatRangeLabel(value: StatisticsRange) {
-  return value === "7d" ? "7 days" : value === "30d" ? "30 days" : "90 days";
-}
-
 export default function SelfPerformancePage() {
-  const { data: workspaces, isLoading: isWorkspaceLoading } = useWorkspaces();
-  const workspaceId = workspaces?.[0]?.id;
+  const {
+    currentWorkspace,
+    setCurrentWorkspace,
+    workspaces,
+    isLoadingWorkspaces,
+  } = useWorkspaceContext();
+
+  const workspaceId = currentWorkspace?.id;
   const [range, setRange] = React.useState<StatisticsRange>("7d");
   const {
     data: performance,
@@ -37,14 +38,14 @@ export default function SelfPerformancePage() {
     isError: isPerformanceError,
   } = useStatisticsSelfPerformance(workspaceId, range);
 
-  const isLoading = isWorkspaceLoading || isPerformanceLoading;
+  const isLoading = isLoadingWorkspaces || isPerformanceLoading;
   const numberFormatter = React.useMemo(() => new Intl.NumberFormat(), []);
   const percentFormatter = React.useMemo(
     () => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }),
     [],
   );
 
-  if (!isWorkspaceLoading && (!workspaces || workspaces.length === 0)) {
+  if (!isLoadingWorkspaces && (!workspaces || workspaces.length === 0)) {
     return (
       <main className="min-h-screen bg-background p-8">
         <div className="mx-auto max-w-4xl">
@@ -77,9 +78,58 @@ export default function SelfPerformancePage() {
       <div className="mx-auto max-w-7xl space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black">Self Performance</h1>
+            <h1 className="text-2xl text-muted-foreground">
+              Self performance from{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-black text-primary hover:opacity-80 transition-opacity inline-flex items-center gap-1 focus:outline-none">
+                    {currentWorkspace?.name}
+                    <ChevronDown className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {workspaces.map((ws) => (
+                      <DropdownMenuItem
+                        key={ws.publicId}
+                        onClick={() => {
+                          setCurrentWorkspace(ws);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
+                          {ws.name.substring(0, 1).toUpperCase()}
+                        </div>
+                        <span className="flex-1 truncate">{ws.name}</span>
+                        {currentWorkspace?.publicId === ws.publicId && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ✓
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>{" "}
+              workspace
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Overview for the last {formatRangeLabel(range)}
+              for the{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-medium text-foreground hover:opacity-80 transition-opacity inline-flex items-center gap-0.5 focus:outline-none">
+                    {range === "7d" ? "last 7 days" : range === "30d" ? "last 30 days" : "last 90 days"}
+                    <ChevronDown className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-40">
+                  <DropdownMenuItem onClick={() => setRange("7d")}>last 7 days</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRange("30d")}>last 30 days</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRange("90d")}>last 90 days</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -91,18 +141,6 @@ export default function SelfPerformancePage() {
                 <Link href="/statistic/self">Self</Link>
               </Button>
             </div>
-            <Select value={range} onValueChange={(value) => setRange(value as StatisticsRange)}>
-              <SelectTrigger className="h-9 w-[110px]">
-                <SelectValue placeholder="Range" />
-              </SelectTrigger>
-              <SelectContent>
-                {ranges.map((rangeValue) => (
-                  <SelectItem key={rangeValue} value={rangeValue}>
-                    {rangeValue}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 

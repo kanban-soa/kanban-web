@@ -14,6 +14,7 @@ import { useWorkspaceContext } from "@/contexts/workspace.context";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Bell,
   CheckCircle2,
   Clock3,
@@ -45,7 +46,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MemberRequest, Board } from "@/lib/api/types";
 
-const range: StatisticsRange = "30d";
 const emptyPriorities: StatisticsPriority[] = [];
 
 function formatInitials(value: string) {
@@ -172,6 +172,7 @@ export default function StatisticPage() {
   const [selectedWorkspacePublicId, setSelectedWorkspacePublicId] = React.useState<string | undefined>(
     currentWorkspace?.publicId
   );
+  const [range, setRange] = React.useState<StatisticsRange>("30d");
 
   React.useEffect(() => {
     if (currentWorkspace) {
@@ -289,9 +290,58 @@ export default function StatisticPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl text-muted-foreground">
-              Statistic overview from <span className="font-black text-primary">{currentWorkspace?.name}</span> workspace
+              Statistic overview from{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-black text-primary hover:opacity-80 transition-opacity inline-flex items-center gap-1 focus:outline-none">
+                    {currentWorkspace?.name}
+                    <ChevronDown className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {workspaces.map((ws) => (
+                      <DropdownMenuItem
+                        key={ws.publicId}
+                        onClick={() => {
+                          setCurrentWorkspace(ws);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs mr-2">
+                          {ws.name.substring(0, 1).toUpperCase()}
+                        </div>
+                        <span className="flex-1 truncate">{ws.name}</span>
+                        {currentWorkspace?.publicId === ws.publicId && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ✓
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>{" "}
+              workspace
             </h1>
-            <p className="text-sm text-muted-foreground">for the last 30 days</p>
+            <p className="text-sm text-muted-foreground">
+              for the{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-medium text-foreground hover:opacity-80 transition-opacity inline-flex items-center gap-0.5 focus:outline-none">
+                    {range === "7d" ? "last 7 days" : range === "30d" ? "last 30 days" : "last 90 days"}
+                    <ChevronDown className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-40">
+                  <DropdownMenuItem onClick={() => setRange("7d")}>last 7 days</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRange("30d")}>last 30 days</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRange("90d")}>last 90 days</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
