@@ -178,7 +178,7 @@ export function CardDetailPage({
       { name: labelInput.trim(), color: labelColor },
       {
         onSuccess: (newLabel) => {
-          attachLabelMut.mutate({ cardId, labelId: newLabel.id });
+          attachLabelMut.mutate({ cardId, labelId: newLabel.publicId });
           toast.success("Label created and attached successfully!");
           setLabelInput("");
           setIsCreateLabelOpen(false);
