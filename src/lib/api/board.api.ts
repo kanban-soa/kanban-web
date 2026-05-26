@@ -59,18 +59,28 @@ function normalizeCardLabels(raw: { labels?: unknown }): Label[] {
     .filter((label) => label.id.length > 0 && label.name.length > 0);
 }
 
-type RawCard = Partial<Card> & { name?: string; labels?: unknown };
+type RawCard = Partial<Card> & {
+  name?: string;
+  labels?: unknown;
+  list?: { publicId?: string; name?: string };
+};
 
 function normalizeCard(raw: RawCard, listId?: string): Card {
   const id = String(raw.id ?? raw.publicId ?? "");
   const labels = normalizeCardLabels(raw);
+  const resolvedListId = String(
+    raw.listId ?? raw.list?.publicId ?? listId ?? "",
+  );
   return {
     ...(raw as Card),
     id,
     publicId: String(raw.publicId ?? raw.id ?? id),
     title: raw.title ?? raw.name ?? "",
     description: raw.description ?? null,
-    listId: String(raw.listId ?? listId ?? ""),
+    listId: resolvedListId,
+    list: raw.list?.publicId
+      ? { publicId: raw.list.publicId, name: raw.list.name ?? "" }
+      : (raw as Card).list,
     labels,
     members: Array.isArray(raw.members)
       ? raw.members.map(String)
@@ -341,8 +351,6 @@ export async function getCard(cardId: string): Promise<Card> {
 export interface UpdateCardRequest {
   title?: string;
   description?: string | null;
-  targetListId?: string;
-  newIndex?: number;
 }
 
 export async function updateCard(
@@ -351,6 +359,22 @@ export async function updateCard(
 ): Promise<Card> {
   const { data } = await api.patch<RawCard | { data: RawCard }>(
     CARDS.UPDATE(cardId),
+    payload,
+  );
+  return normalizeCard(unwrap<RawCard>(data));
+}
+
+export interface MoveCardRequest {
+  targetListId: string;
+  newIndex?: number;
+}
+
+export async function moveCard(
+  cardId: string,
+  payload: MoveCardRequest,
+): Promise<Card> {
+  const { data } = await api.patch<RawCard | { data: RawCard }>(
+    CARDS.MOVE(cardId),
     payload,
   );
   return normalizeCard(unwrap<RawCard>(data));
