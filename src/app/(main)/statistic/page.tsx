@@ -246,10 +246,6 @@ export default function StatisticPage() {
   const activities = activitiesData?.items ?? [];
   const priorities = summary?.priorities ?? emptyPriorities;
   const workloads = summary?.workloads ?? [];
-  const prioritySegments = React.useMemo(
-    () => buildPrioritySegments(priorities),
-    [priorities],
-  );
 
 
   if (isLoadingWorkspaces && (!workspaces || workspaces.length === 0)) {
@@ -487,65 +483,73 @@ export default function StatisticPage() {
 
           <div className="space-y-8">
             <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-              <h2 className="mb-6 text-xl font-black">Priority Breakdown</h2>
-              <div className="mx-auto flex w-48 flex-col items-center">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-black">Priority Breakdown</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Get a breakdown of work items by priority.
+                  </p>
+                </div>
+                <Button
+                  asChild
+                  variant="link"
+                  className="text-xs font-bold uppercase tracking-wider text-primary hover:underline"
+                >
+                  <Link href="/statistic/activities">View all items</Link>
+                </Button>
+              </div>
+              <div className="space-y-3 text-xs text-muted-foreground">
+                <div className="grid grid-cols-[140px_1fr] items-center gap-4 font-semibold">
+                  <span>Type</span>
+                  <span>Distribution</span>
+                </div>
                 {isLoading ? (
-                  <>
-                    <Skeleton className="size-48 rounded-full" />
-                    <div className="mt-8 grid w-full gap-3">
-                      {Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton key={index} className="h-5 w-full" />
-                      ))}
-                    </div>
-                  </>
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className="grid grid-cols-[140px_1fr] items-center gap-4">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ))}
+                  </div>
                 ) : priorities.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
                     No priority data available.
                   </div>
                 ) : (
-                  <>
-                    <div className="relative size-48">
-                      <svg className="size-full -rotate-90" viewBox="0 0 36 36">
-                        <circle
-                          cx="18"
-                          cy="18"
-                          fill="transparent"
-                          r="15.915"
-                          stroke="var(--muted)"
-                          strokeWidth="4"
-                        />
-                        {prioritySegments.map((priority) => (
-                          <circle
-                            key={priority.label}
-                            cx="18"
-                            cy="18"
-                            fill="transparent"
-                            r="15.915"
-                            stroke={priority.color}
-                            strokeDasharray={priority.dashArray}
-                            strokeDashoffset={priority.dashOffset}
-                            strokeWidth="4"
-                          />
-                        ))}
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-black">100%</span>
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                          Total cards
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-8 grid w-full gap-3">
-                      {priorities.map((priority) => (
-                        <LegendItem
+                  <div className="space-y-3">
+                    {priorities.map((priority) => {
+                      const valueLabel = formatPercent(priority.value);
+                      return (
+                        <div
                           key={priority.label}
-                          color={priority.color}
-                          label={priority.label}
-                          value={formatPercent(priority.value)}
-                        />
-                      ))}
-                    </div>
-                  </>
+                          className="grid grid-cols-[140px_1fr] items-center gap-4"
+                        >
+                          <div className="flex items-center gap-2 text-sm text-foreground">
+                            <span
+                              className="h-2.5 w-2.5 rounded-sm"
+                              style={{ backgroundColor: priority.color }}
+                            />
+                            <span className="font-medium">{priority.label}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="h-3 w-full overflow-hidden rounded-md bg-muted">
+                              <div
+                                className="h-full rounded-md"
+                                style={{
+                                  width: valueLabel,
+                                  backgroundColor: priority.color,
+                                }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-[10px] font-semibold text-muted-foreground">
+                              {valueLabel}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
@@ -612,26 +616,6 @@ export default function StatisticPage() {
   );
 }
 
-function LegendItem({
-  color,
-  label,
-  value,
-}: {
-  color: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center justify-between text-xs">
-      <div className="flex items-center gap-2">
-        <div className="size-3 rounded-full" style={{ backgroundColor: color }} />
-        <span className="font-bold text-muted-foreground">{label}</span>
-      </div>
-      <span className="font-black">{value}</span>
-    </div>
-  );
-}
-
 function ActivityItem({
   activity,
   members,
@@ -668,58 +652,42 @@ function ActivityItem({
     [activity, members],
   );
 
+  const fullTimestamp = React.useMemo(() => {
+    const date = new Date(activity.createdAt);
+    if (Number.isNaN(date.getTime())) return activity.createdAt;
+    return date.toLocaleString();
+  }, [activity.createdAt]);
+
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-start gap-4 rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
       <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
         {formatInitials(actorName)}
       </div>
-      <div className="flex-1">
-        <p className="text-sm">
-          <span className="font-semibold text-primary">{actorName}</span>{" "}
-          <span className="text-muted-foreground">{activityMessage}</span>{" "}
-          <span className="text-muted-foreground">-</span>{" "}
-          <span className="font-semibold">{entityName}</span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-primary">{actorName}</span>
+          <span className="text-muted-foreground">{activityMessage}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground/80">{entityName}</span>
           {activity.entityType === "card" && activity.metadata?.listName && (
-            <>
-              {" "}
-              in <span className="font-medium">{activity.metadata.listName}</span>
-            </>
+            <span>in {activity.metadata.listName}</span>
           )}
           {activity.entityType === "card" && activity.metadata?.boardName && (
-            <>
-              {" "}
-              of <span className="font-medium">{activity.metadata.boardName}</span>
-            </>
+            <span>of {activity.metadata.boardName}</span>
           )}
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {formatActivityAge(activity.createdAt)}
-        </p>
+        </div>
       </div>
-      <Badge variant="outline">{activity.actionType.split(".")[1]}</Badge>
+      <div className="flex flex-col items-end gap-1">
+        <Badge variant="outline">{activity.actionType.split(".")[1]}</Badge>
+        <span className="text-[10px] text-muted-foreground" title={fullTimestamp}>
+          {formatActivityAge(activity.createdAt)}
+        </span>
+      </div>
     </div>
   );
 }
 
 function clampPercentage(value: number) {
   return Math.min(100, Math.max(0, value));
-}
-
-function buildPrioritySegments(priorities: StatisticsPriority[]) {
-  const total = priorities.reduce((acc, item) => acc + item.value, 0);
-  if (total <= 0) return [];
-  const normalized = priorities.map((item) => ({
-    ...item,
-    value: (item.value / total) * 100,
-  }));
-  let offset = 0;
-  return normalized.map((item) => {
-    const segment = {
-      ...item,
-      dashArray: `${item.value} ${100 - item.value}`,
-      dashOffset: -offset,
-    };
-    offset += item.value;
-    return segment;
-  });
 }
