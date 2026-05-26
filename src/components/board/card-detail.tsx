@@ -44,7 +44,8 @@ import {
 import { useMember, useWorkspace } from "@/hooks/use-workspaces";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
 import { useWorkspaceActivities } from "@/hooks/use-statistics";
-import type { Label as ApiLabel } from "@/lib/api/types";
+import type { Label as ApiLabel, MemberRequest } from "@/lib/api/types";
+import { ActivityAction, type Activity } from "@/lib/api/statistics.api";
 import {
   Dialog,
   DialogContent,
@@ -73,7 +74,13 @@ const LABEL_COLORS = [
   "#f43f5e",
 ];
 
-type DisplayList = { id: string; title: string };
+type DisplayList = { id: string; publicId?: string; title: string };
+
+type ActivityLookupContext = {
+  lists: DisplayList[];
+  labels: ApiLabel[];
+  members: MemberRequest[];
+};
 
 function formatInitials(name: string) {
   if (!name) return "??";
@@ -82,6 +89,155 @@ function formatInitials(name: string) {
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
+}
+
+function formatMaybeDate(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return format(date, "MMM d, yyyy");
+}
+
+function normalizeChangeAction(action?: unknown): "added" | "removed" | "updated" {
+  if (!action) return "updated";
+  const value = String(action).toLowerCase();
+  if (value.includes("add")) return "added";
+  if (value.includes("remove") || value.includes("delete")) return "removed";
+  return "updated";
+}
+
+function resolveListTitle(lists: DisplayList[], listId?: string | number): string {
+  if (!listId) return "a list";
+  const target = String(listId);
+  const list = lists.find((l) => l.id === target || l.publicId === target);
+  return list?.title || "a list";
+}
+
+function resolveLabelName(
+  labels: ApiLabel[],
+  labelId?: string | number,
+): string {
+  if (!labelId) return "a label";
+  const target = String(labelId);
+  const label = labels.find(
+    (l) => String(l.id) === target || l.publicId === target,
+  );
+  return label?.name || "a label";
+}
+
+function resolveMemberName(
+  members: MemberRequest[],
+  workspaceMemberPublicId?: string,
+): string {
+  if (!workspaceMemberPublicId) return "a member";
+  const target = String(workspaceMemberPublicId);
+  const member = members.find(
+    (m) =>
+      m.publicId === target ||
+      String(m.id) === target ||
+      m.userId === target,
+  );
+  return member?.name || member?.email || "a member";
+}
+
+function formatIndexPosition(value?: number): string {
+  if (typeof value !== "number" || Number.isNaN(value)) return "a new position";
+  return `position ${value + 1}`;
+}
+
+function getCardActivityMessage(
+  activity: Activity,
+  ctx: ActivityLookupContext,
+): string {
+  const fields: string[] = Array.isArray(activity.metadata?.fields)
+    ? activity.metadata.fields
+    : [];
+  const metadata = activity.metadata ?? {};
+
+  if (activity.actionType === ActivityAction.CARD_CREATED) {
+    return "created this card";
+  }
+  if (activity.actionType === ActivityAction.CARD_DELETED) {
+    return "deleted this card";
+  }
+  if (activity.actionType === ActivityAction.CARD_ARCHIVED) {
+    return "archived this card";
+  }
+  if (activity.actionType !== ActivityAction.CARD_UPDATED) {
+    return activity.actionType.replace("card.", "");
+  }
+
+  if (fields.includes("list") || fields.includes("index")) {
+    const fromListId = metadata.fromListId as number | string | undefined;
+    const toListId = metadata.toListId as number | string | undefined;
+    const listId = metadata.listId as string | undefined;
+    const fromIndex = metadata.fromIndex as number | undefined;
+    const toIndex = metadata.toIndex as number | undefined;
+
+    if (fromListId != null && toListId != null) {
+      if (String(fromListId) !== String(toListId)) {
+        const fromListName = resolveListTitle(ctx.lists, fromListId);
+        const toListName = resolveListTitle(ctx.lists, toListId);
+        return `moved the card from ${fromListName} (${formatIndexPosition(fromIndex)}) to ${toListName} (${formatIndexPosition(toIndex)})`;
+      }
+      const listName = resolveListTitle(ctx.lists, fromListId);
+      if (fromIndex != null && toIndex != null) {
+        return `moved the card within ${listName} from ${formatIndexPosition(fromIndex)} to ${formatIndexPosition(toIndex)}`;
+      }
+      return `updated the card position in ${listName}`;
+    }
+
+    if (listId) {
+      const listName = resolveListTitle(ctx.lists, listId);
+      return `reordered cards in ${listName}`;
+    }
+
+    return "updated the card position";
+  }
+
+  if (fields.includes("dueDate")) {
+    const fromDueDate = metadata.fromDueDate as string | null | undefined;
+    const toDueDate = metadata.toDueDate as string | null | undefined;
+    if (!fromDueDate && toDueDate) {
+      return `set the due date to ${formatMaybeDate(toDueDate)}`;
+    }
+    if (fromDueDate && !toDueDate) {
+      return "removed the due date";
+    }
+    if (fromDueDate && toDueDate) {
+      return `changed the due date from ${formatMaybeDate(fromDueDate)} to ${formatMaybeDate(toDueDate)}`;
+    }
+    return "updated the due date";
+  }
+
+  if (fields.includes("title")) {
+    return "updated the title";
+  }
+
+  if (fields.includes("description")) {
+    return "updated the description";
+  }
+
+  if (fields.includes("label")) {
+    const action = normalizeChangeAction(
+      metadata.labelAction ?? metadata.action ?? metadata.operation,
+    );
+    const labelName = resolveLabelName(ctx.labels, metadata.labelId as string | number | undefined);
+    return `${action} label ${labelName}`;
+  }
+
+  if (fields.includes("member")) {
+    const action = normalizeChangeAction(
+      metadata.memberAction ?? metadata.action ?? metadata.operation,
+    );
+    const memberName = resolveMemberName(
+      ctx.members,
+      metadata.workspaceMemberPublicId as string | undefined,
+    );
+    return `${action} member ${memberName}`;
+  }
+
+  return "updated this card";
 }
 
 export function CardDetailPage({
@@ -124,9 +280,10 @@ export function CardDetailPage({
   const lists: DisplayList[] = React.useMemo(
     () =>
       rawLists.map((l) => {
-        const withTitle = l as { title?: string; name?: string };
+        const withTitle = l as { title?: string; name?: string; publicId?: string };
         return {
           id: String(l.id),
+          publicId: withTitle.publicId,
           title: withTitle.title ?? withTitle.name ?? "",
         };
       }),
@@ -335,6 +492,11 @@ export function CardDetailPage({
                     (m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId
                   );
                   const actorName = activity.metadata?.actor?.username || member?.name || "Someone";
+                  const activityText = getCardActivityMessage(activity, {
+                    lists,
+                    labels: boardLabels,
+                    members: workspaceMembers,
+                  });
 
                   return (
                     <div key={activity.id} className="relative flex gap-4 pl-0">
@@ -344,10 +506,7 @@ export function CardDetailPage({
                       <div className="flex flex-col text-[13px] pt-1.5">
                         <div>
                           <span className="font-semibold">{actorName}</span>{" "}
-                          <span className="text-muted-foreground">
-                            {activity.actionType.replace("card.", "")}{" "}
-                            <span className="font-medium text-foreground/80">{activity.metadata?.title || "the card"}</span>
-                          </span>
+                          <span className="text-muted-foreground">{activityText}</span>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">
                           {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
@@ -389,8 +548,13 @@ export function CardDetailPage({
           <div className="grid grid-cols-[72px_1fr] items-center gap-3">
             <div className="text-muted-foreground">List</div>
             <div className="font-medium text-foreground">
-              {lists.find((l) => l.id === listId || l.id === card?.list?.publicId)
-                ?.title || "Unknown"}
+              {lists.find(
+                (l) =>
+                  l.id === listId ||
+                  l.publicId === listId ||
+                  l.id === card?.list?.publicId ||
+                  l.publicId === card?.list?.publicId,
+              )?.title || "Unknown"}
             </div>
           </div>
 
