@@ -26,7 +26,7 @@ import {
   useUpdateList,
   useDeleteList,
   useCreateCard,
-  useUpdateCard,
+  useMoveCard,
   useAttachLabelToCard,
   useDetachLabelFromCard,
   useAssignMemberToCard,
@@ -124,7 +124,7 @@ export function BoardView({
   const createListMut = useCreateList(workspaceId, boardId);
   const updateListMut = useUpdateList(workspaceId, boardId);
   const deleteListMut = useDeleteList(workspaceId, boardId);
-  const updateCardMut = useUpdateCard(workspaceId, boardId);
+  const moveCardMut = useMoveCard(workspaceId, boardId);
   const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
   const detachLabelMut = useDetachLabelFromCard(workspaceId, boardId);
   const assignMemberMut = useAssignMemberToCard(workspaceId, boardId);
@@ -390,12 +390,22 @@ export function BoardView({
                   })
                 }
                 onDeleteList={() => deleteListMut.mutate(list.id)}
-                onMoveCard={(cardId, newListId) =>
-                  updateCardMut.mutate({
-                    cardId,
-                    payload: { targetListId: newListId },
-                  })
-                }
+                onMoveCard={(cardId, newListId) => {
+                  // Skip no-op drops (dropping onto the same list).
+                  const currentList = lists.find((l) =>
+                    l.cards.some((c) => c.id === cardId),
+                  );
+                  if (currentList?.id === newListId) return;
+                  moveCardMut.mutate(
+                    {
+                      cardId,
+                      payload: { targetListId: newListId },
+                    },
+                    {
+                      onError: () => toast.error("Failed to move card"),
+                    },
+                  );
+                }}
                 onToggleLabel={toggleLabelOnCard}
                 onToggleMember={toggleMemberOnCard}
                 onSetDueDate={setDueDateOnCard}
