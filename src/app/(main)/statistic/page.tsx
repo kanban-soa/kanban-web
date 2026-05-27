@@ -533,18 +533,11 @@ export default function StatisticPage() {
             <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-black">Priority Breakdown</h2>
+                  <h2 className="text-xl font-black">Labels Breakdown</h2>
                   <p className="text-xs text-muted-foreground">
-                    Get a breakdown of work items by priority.
+                    Get a breakdown of work items.
                   </p>
                 </div>
-                <Button
-                  asChild
-                  variant="link"
-                  className="text-xs font-bold uppercase tracking-wider text-primary hover:underline"
-                >
-                  <Link href="/statistic/activities">View all items</Link>
-                </Button>
               </div>
               <div className="space-y-3 text-xs text-muted-foreground">
                 <div className="grid grid-cols-[140px_1fr] items-center gap-4 font-semibold">
@@ -562,7 +555,7 @@ export default function StatisticPage() {
                   </div>
                 ) : priorities.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    No priority data available.
+                    No labels data available.
                   </div>
                 ) : (
                   <div className="space-y-3">
