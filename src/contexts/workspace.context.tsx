@@ -4,26 +4,25 @@ import { createContext, useContext, ReactNode, useState, useEffect, useMemo, use
 import { useRouter, usePathname } from "next/navigation";
 import { Workspace, WorkspaceContextType } from "@/contexts/context.type";
 import { useWorkspaces } from "@/hooks/use-workspaces";
+import { useParams } from "next/navigation";
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
-function extractWorkspaceIdFromPath(pathname: string | null): string | null {
-  if (!pathname) return null;
-  const match = pathname.match(/^\/workspaces\/([^/]+)/);
-  const id = match?.[1];
-  if (!id || id === "default") return null;
-  return id;
-}
+// function extractWorkspaceIdFromPath(pathname: string | null): string | null {
+//   if (!pathname) return null;
+//   const match = pathname.match(/^\/workspaces\/([^/]+)/);
+//   const id = match?.[1];
+//   if (!id || id === "default") return null;
+//   return id;
+// }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const params = useParams<{ workspaceId: string }>();
   const { data: workspaces = [], isLoading: isLoadingWorkspaces } = useWorkspaces();
 
-  const urlWorkspaceId = useMemo(
-    () => extractWorkspaceIdFromPath(pathname),
-    [pathname],
-  );
+  const urlWorkspaceId = params.workspaceId as string | null;
 
   // Remember the most recently selected workspace so routes that don't carry a
   // workspaceId in the URL (e.g. /member, /statistic) still reflect the user's

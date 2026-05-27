@@ -103,13 +103,13 @@ export function WorkspaceDialog({ open, onOpenChange, mode = "create", workspace
         </div>
         <div className="mt-4 space-y-3">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Workspace name…" />
-          {isEdit ? (
-            <Textarea
-              value={description ?? ""}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optional)…"
-            />
-          ) : null}
+
+          <Textarea
+            value={description ?? ""}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description (optional)…"
+          />
+
           <div className="flex justify-end gap-2">
             <Button variant="outline" type="button" onClick={() => {
               setName("");

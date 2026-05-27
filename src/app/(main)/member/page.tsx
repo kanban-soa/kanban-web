@@ -60,16 +60,14 @@ export default function MemberPage() {
         {/* Left Column: Workspace Settings */}
         <div className="lg:col-span-1 space-y-6">
           <WorkspaceCard
-            initials={currentWorkspace?.name.split(" ").map((n) => n[0]).join("") ?? ""}
-            title={currentWorkspace?.name ?? ""}
-            description={currentWorkspace?.description ?? "Insights and workspace details"}
+            {...currentWorkspace!}
           />
 
-          <InsightCard
+          {/* <InsightCard
             teamVelocity={12}
             focusScore={92}
             description="Your team is performing exceptionally well this sprint. Keep up the momentum!"
-          />
+          /> */}
         </div>
 
         {/* Right Column: Members and Invitations */}
@@ -77,10 +75,10 @@ export default function MemberPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="text-3xl font-bold text-foreground">
                 Project Management
               </h1>
-              <p className="text-slate-400 mt-1">
+              <p className="text-muted-foreground mt-1">
                 Workspace settings and team collaboration
               </p>
             </div>
@@ -98,7 +96,7 @@ export default function MemberPage() {
 
           {/* Members Table */}
           <div>
-            <h2 className="text-lg font-semibold text-white mb-4">
+            <h2 className="text-lg font-semibold text-foreground mb-4">
               Active Members
             </h2>
             {memberData && currentWorkspace && (

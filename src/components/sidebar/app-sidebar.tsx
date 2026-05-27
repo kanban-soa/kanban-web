@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
 import { logout as logoutApi } from "@/lib/api/auth.api";
+import WorkspaceAvatar from "../ui/workspace-avatar";
 
 const navItems = [
   { title: "Workspaces", icon: Zap, href: "/workspaces" },
@@ -209,11 +210,7 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
                         isCollapsed ? "justify-center px-0" : "flex-1"
                       }`}
                     >
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm font-bold text-xs">
-                        {currentWorkspace?.name
-                          ? currentWorkspace.name.substring(0, 1).toUpperCase()
-                          : "W"}
-                      </div>
+                      <WorkspaceAvatar currentWorkspace={currentWorkspace} />
                       {!isCollapsed && (
                         <span
                           className="min-w-0 flex-1 truncate text-left font-medium text-[15px] text-sidebar-foreground"
@@ -408,7 +405,7 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
           </SidebarFooter>
           <SidebarRail />
         </Sidebar>
-        <div className="flex-1 overflow-auto">{children}</div>
+        <div className="flex-1 overflow-auto bg-background">{children}</div>
       </div>
     </ThemeProvider>
   );
