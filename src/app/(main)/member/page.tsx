@@ -60,7 +60,7 @@ export default function MemberPage() {
         {/* Left Column: Workspace Settings */}
         <div className="lg:col-span-1 space-y-6">
           <WorkspaceCard
-            workspace={currentWorkspace!}
+            {...currentWorkspace!}
           />
 
           {/* <InsightCard

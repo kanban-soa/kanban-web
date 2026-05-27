@@ -7,14 +7,7 @@ import { cn } from "@/lib/utils";
 import { Workspace } from "@/contexts/context.type";
 import WorkspaceAvatar from "../ui/workspace-avatar";
 
-interface WorkspaceCardProps {
-  workspace: Workspace;
-  onSwitchWorkspace?: () => void;
-}
-
-export function WorkspaceCard({
-  workspace
-}: WorkspaceCardProps) {
+export function WorkspaceCard(workspace: Workspace) {
   return (
     <div className="rounded-xl bg-card border border-transparent shadow-sm p-6 space-y-6">
       {/* Header with Lock Icon */}
@@ -35,7 +28,7 @@ export function WorkspaceCard({
             Workspace
           </p>
           <h3 className="text-lg font-semibold text-foreground truncate">
-            {workspace.name}
+            {workspace?.name}
           </h3>
         </div>
       </div>
