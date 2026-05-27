@@ -34,7 +34,7 @@ export function RoleSwitchModal({ open, member, roles, selectedRole, onChangeRol
       >
         <div className="text-base font-semibold text-foreground">Change Role</div>
         <div className="mt-1 text-xs text-muted-foreground">{
-          `Update role for ${member.name ?? member.email}`
+          `Update role for ${member.email}`
         }</div>
         <div className="mt-4 space-y-4">
           <div>
