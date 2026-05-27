@@ -23,10 +23,10 @@ export function RemoveMemberModal({ open, member, onClose, onConfirm }: RemoveMe
       <div
         role="dialog"
         aria-modal="true"
-        className="relative z-10 w-full max-w-md rounded-xl border bg-black border-muted-700 p-5 shadow-lg"
+        className="relative z-10 w-full max-w-md rounded-xl border border-transparent bg-card shadow-sm p-5"
       >
-        <div className="text-base font-semibold text-white">Remove Member</div>
-        <div className="mt-1 text-xs text-muted-400">
+        <div className="text-base font-semibold text-foreground">Remove Member</div>
+        <div className="mt-1 text-xs text-muted-foreground">
           Are you sure you want to remove {member.name ?? member.email} from this workspace?
         </div>
         <div className="mt-4 flex justify-end gap-2">
@@ -34,7 +34,7 @@ export function RemoveMemberModal({ open, member, onClose, onConfirm }: RemoveMe
             variant="outline"
             type="button"
             onClick={onClose}
-            className="bg-muted-800 border-muted-700 text-white hover:bg-muted-700"
+            className="hover:bg-accent"
           >
             Cancel
           </Button>

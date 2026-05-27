@@ -77,10 +77,10 @@ export default function MemberPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="text-3xl font-bold text-foreground">
                 Project Management
               </h1>
-              <p className="text-slate-400 mt-1">
+              <p className="text-muted-foreground mt-1">
                 Workspace settings and team collaboration
               </p>
             </div>
@@ -98,7 +98,7 @@ export default function MemberPage() {
 
           {/* Members Table */}
           <div>
-            <h2 className="text-lg font-semibold mb-4">
+            <h2 className="text-lg font-semibold text-foreground mb-4">
               Active Members
             </h2>
             {memberData && currentWorkspace && (

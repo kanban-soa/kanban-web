@@ -150,45 +150,45 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
   };
 
   return (
-    <div className="rounded-xl bg-card border border-muted-700 shadow-lg overflow-hidden">
+    <div className="rounded-xl bg-card border border-transparent shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="grid grid-cols-4 gap-4 px-6 py-4 bg-card border-b border-muted-700">
-        <p className="text-xs font-semibold text-muted-300 uppercase tracking-wide">
+      <div className="grid grid-cols-4 gap-4 px-6 py-4 bg-card border-b border-border">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Member
         </p>
-        <p className="text-xs font-semibold text-muted-300 uppercase tracking-wide">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Role
         </p>
-        <p className="text-xs font-semibold text-muted-300 uppercase tracking-wide">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Status
         </p>
-        <p className="text-xs font-semibold text-muted-300 uppercase tracking-wide text-right">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide text-right">
           Actions
         </p>
       </div>
 
       {/* Rows */}
-      <div className="divide-y divide-muted-700">
+      <div className="divide-y divide-border">
         {(members && members.length > 0 ? members : []).map((member) => (
           <div
             key={member.id}
-            className="grid grid-cols-4 gap-4 px-6 py-4 hover:bg-muted-800 transition-colors items-center"
+            className="grid grid-cols-4 gap-4 px-6 py-4 hover:bg-accent/30 transition-colors items-center"
           >
             {/* Member Info */}
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-semibold text-sm text-white",
-                  "bg-gradient-to-br from-gray-500 to-gray-600"
+                  "bg-gradient-to-br from-blue-500 to-blue-600"
                 )}
               >
                 {getInitials(member.email || member.email)}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {member.email || member.email.split('@')[0]}
                 </p>
-                <p className="text-xs text-muted-400 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {member.email}
                 </p>
               </div>
@@ -220,7 +220,7 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
                     : "bg-yellow-500"
                 )}
               />
-              <span className="text-sm text-muted-300 capitalize">
+              <span className="text-sm text-foreground capitalize">
                 {member.status}
               </span>
             </div>
@@ -246,7 +246,7 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
                   variant="outline"
                   size="sm"
                   onClick={() => handleDeactivate(member)}
-                  className="h-8 px-2 text-xs gap-1 hover:bg-red-950 hover:border-red-700"
+                  className="h-8 px-2 text-xs gap-1 hover:bg-destructive hover:border-destructive-700"
                   title="Remove member"
                 >
                   <LogOut className="h-3.5 w-3.5" />
