@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { LabelManagementDialog } from "@/components/board/label-management-dialog";
 
 type DisplayCard = {
   id: Id;
@@ -177,6 +178,7 @@ export function BoardView({
   const [isListOpen, setIsListOpen] = React.useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [isLabelManagerOpen, setIsLabelManagerOpen] = React.useState(false);
   const [boardTitle, setBoardTitle] = React.useState(board?.title ?? "");
   const [boardDescription, setBoardDescription] = React.useState(
     board?.description ?? "",
@@ -291,6 +293,9 @@ export function BoardView({
                   <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
                     Edit Board
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsLabelManagerOpen(true)}>
+                    Manage Labels
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setIsDeleteModalOpen(true)}
                     className="text-red-600"
@@ -338,6 +343,12 @@ export function BoardView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LabelManagementDialog
+        boardId={String(boardId)}
+        open={isLabelManagerOpen}
+        onOpenChange={setIsLabelManagerOpen}
+      />
 
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent>
