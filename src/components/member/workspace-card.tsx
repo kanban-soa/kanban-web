@@ -4,20 +4,16 @@ import React from "react";
 import { Lock, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Workspace } from "@/contexts/context.type";
+import WorkspaceAvatar from "../ui/workspace-avatar";
 
 interface WorkspaceCardProps {
-  avatar?: string;
-  initials: string;
-  title: string;
-  description: string;
+  workspace: Workspace;
   onSwitchWorkspace?: () => void;
 }
 
 export function WorkspaceCard({
-  avatar,
-  initials = "DC",
-  title = "Design Collective",
-  description = "Collaborate on design projects and brand assets",
+  workspace
 }: WorkspaceCardProps) {
   return (
     <div className="rounded-xl bg-card border border-transparent shadow-sm p-6 space-y-6">
@@ -33,20 +29,13 @@ export function WorkspaceCard({
 
       {/* Avatar Section */}
       <div className="flex items-center gap-4">
-        <div
-          className={cn(
-            "flex h-16 w-16 shrink-0 items-center justify-center rounded-lg font-bold text-lg text-white",
-            "bg-gradient-to-br from-blue-500 to-blue-600 shadow-md"
-          )}
-        >
-          {initials}
-        </div>
+        <WorkspaceAvatar currentWorkspace={workspace} />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Workspace
           </p>
           <h3 className="text-lg font-semibold text-foreground truncate">
-            {title}
+            {workspace.name}
           </h3>
         </div>
       </div>
@@ -61,7 +50,7 @@ export function WorkspaceCard({
             Title
           </label>
           <div className="w-full px-3 py-2 rounded-lg bg-muted border border-transparent shadow-sm text-foreground text-sm font-medium">
-            {title}
+            {workspace.name}
           </div>
         </div>
 
@@ -70,7 +59,7 @@ export function WorkspaceCard({
             Description
           </label>
           <div className="w-full px-3 py-2 rounded-lg bg-muted border border-transparent shadow-sm text-foreground text-sm">
-            {description}
+            {workspace.description}
           </div>
         </div>
       </div>

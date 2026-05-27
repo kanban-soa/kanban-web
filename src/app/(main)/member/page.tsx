@@ -60,9 +60,7 @@ export default function MemberPage() {
         {/* Left Column: Workspace Settings */}
         <div className="lg:col-span-1 space-y-6">
           <WorkspaceCard
-            initials={currentWorkspace?.name.split(" ").map((n) => n[0]).join("") ?? ""}
-            title={currentWorkspace?.name ?? ""}
-            description={currentWorkspace?.description || "Insights and workspace details"}
+            workspace={currentWorkspace!}
           />
 
           {/* <InsightCard
