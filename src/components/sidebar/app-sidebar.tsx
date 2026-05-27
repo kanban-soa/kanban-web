@@ -408,7 +408,7 @@ export function AppSidebar({ children, ...props }: AppSidebarProps) {
           </SidebarFooter>
           <SidebarRail />
         </Sidebar>
-        <div className="flex-1 overflow-auto">{children}</div>
+        <div className="flex-1 overflow-auto bg-background">{children}</div>
       </div>
     </ThemeProvider>
   );
