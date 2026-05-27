@@ -54,7 +54,6 @@ export interface MemberRequest {
   id: number;
   publicId: string;
   email: string;
-  name: string | null;
   userId: string;
   workspaceId: number;
   createdBy: string;

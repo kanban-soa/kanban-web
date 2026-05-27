@@ -76,7 +76,7 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
       removeMemberMutation.mutate(String(selectedMember.id), {
         onSuccess: () => {
           toast.success("Member removed", {
-            description: `${selectedMember.name} has been removed from the workspace.`,
+            description: `${selectedMember.email} has been removed from the workspace.`,
           });
           setIsDeactivateOpen(false);
           setSelectedMember(null);
@@ -121,7 +121,7 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
         {
           onSuccess: () => {
             toast.success("Role updated", {
-              description: `${selectedMember.name}'s role has been changed to ${selectedRole}.`,
+              description: `${selectedMember.email}'s role has been changed to ${selectedRole}.`,
             });
             setIsRoleSwitchOpen(false);
             setSelectedMember(null);
@@ -150,7 +150,7 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
   };
 
   return (
-    <div className="rounded-xl bg-muted-900 border border-muted-700 shadow-lg overflow-hidden">
+    <div className="rounded-xl bg-card border border-muted-700 shadow-lg overflow-hidden">
       {/* Header */}
       <div className="grid grid-cols-4 gap-4 px-6 py-4 bg-card border-b border-muted-700">
         <p className="text-xs font-semibold text-muted-300 uppercase tracking-wide">
@@ -182,11 +182,11 @@ export function MembersTable({ members, workspaceId, isAdminOfWorkspace }: Membe
                   "bg-gradient-to-br from-gray-500 to-gray-600"
                 )}
               >
-                {getInitials(member.name || member.email)}
+                {getInitials(member.email || member.email)}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  {member.name || member.email.split('@')[0]}
+                  {member.email || member.email.split('@')[0]}
                 </p>
                 <p className="text-xs text-muted-400 truncate">
                   {member.email}

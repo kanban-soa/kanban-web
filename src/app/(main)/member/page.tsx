@@ -62,14 +62,14 @@ export default function MemberPage() {
           <WorkspaceCard
             initials={currentWorkspace?.name.split(" ").map((n) => n[0]).join("") ?? ""}
             title={currentWorkspace?.name ?? ""}
-            description={currentWorkspace?.description ?? "Insights and workspace details"}
+            description={currentWorkspace?.description || "Insights and workspace details"}
           />
 
-          <InsightCard
+          {/* <InsightCard
             teamVelocity={12}
             focusScore={92}
             description="Your team is performing exceptionally well this sprint. Keep up the momentum!"
-          />
+          /> */}
         </div>
 
         {/* Right Column: Members and Invitations */}
@@ -98,7 +98,7 @@ export default function MemberPage() {
 
           {/* Members Table */}
           <div>
-            <h2 className="text-lg font-semibold text-white mb-4">
+            <h2 className="text-lg font-semibold mb-4">
               Active Members
             </h2>
             {memberData && currentWorkspace && (
