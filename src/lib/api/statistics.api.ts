@@ -128,25 +128,25 @@ const buildStatisticsUrl = (path: string) => new URL(path, STATISTICS_BASE_URL).
 export async function getStatisticsSummary(
   workspaceId: string,
   range: StatisticsRange = "7d",
+  boardId?: string,
 ): Promise<StatisticsSummary> {
   const { data } = await api.get<StatisticsSummaryResponse>(
     buildStatisticsUrl(STATISTICS.SUMMARY(workspaceId)),
     {
-      params: { range },
+      params: { range, boardId },
     },
   );
-  console.log("Fetched statistics summary:", JSON
-      .stringify(data));
   return data.data;
 }
 
 export async function getWorkspaceActivities(
   workspaceId: string,
   params: PagedActivityRequest = {},
+  boardId?: string,
 ): Promise<PagedActivityResponse> {
   const { data } = await api.get<PagedActivityApiResponse>(
     buildStatisticsUrl(STATISTICS.ACTIVITIES(workspaceId)),
-    { params },
+    { params: { ...params, boardId } },
   );
   return data.data;
 }

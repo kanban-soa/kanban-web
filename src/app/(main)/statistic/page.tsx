@@ -207,6 +207,11 @@ export default function StatisticPage() {
     currentWorkspace?.publicId
   );
   const [range, setRange] = React.useState<StatisticsRange>("30d");
+  const [selectedBoardId, setSelectedBoardId] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    setSelectedBoardId(undefined);
+  }, [selectedWorkspaceId]);
 
   React.useEffect(() => {
     if (currentWorkspace) {
@@ -221,11 +226,11 @@ export default function StatisticPage() {
     data: summary,
     isLoading: isStatsLoading,
     isError: isStatsError,
-  } = useStatisticsSummary(selectedWorkspaceId, range);
+  } = useStatisticsSummary(selectedWorkspaceId, range, selectedBoardId);
   const { data: activitiesData, isLoading: isActivitiesLoading } =
     useWorkspaceActivities(selectedWorkspaceId, {
       limit: 5,
-    });
+    }, selectedBoardId);
 
   const { data: members = [], isLoading: isMembersLoading } = useMember(selectedWorkspaceId ?? "");
   const { data: boards = [], isLoading: isBoardsLoading } = useBoards(selectedWorkspacePublicId ?? "");
@@ -358,6 +363,49 @@ export default function StatisticPage() {
             </h1>
             <p className="text-sm text-muted-foreground">
               for the{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-black text-primary hover:opacity-80 transition-opacity inline-flex items-center gap-1 focus:outline-none">
+                    {selectedBoardId
+                      ? boards.find((b) => b.publicId === selectedBoardId)?.title ?? "Select Board"
+                      : "all"}
+                    <ChevronDown className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Filter by Board</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setSelectedBoardId(undefined)}
+                    className="cursor-pointer"
+                  >
+                    All Boards
+                    {!selectedBoardId && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        ✓
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {boards.map((board) => (
+                      <DropdownMenuItem
+                        key={board.publicId}
+                        onClick={() => setSelectedBoardId(board.publicId)}
+                        className="cursor-pointer"
+                      >
+                        <span className="flex-1 truncate">{board.title}</span>
+                        {selectedBoardId === board.publicId && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ✓
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>{" "}
+              boards, for the{" "}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="font-medium text-foreground hover:opacity-80 transition-opacity inline-flex items-center gap-0.5 focus:outline-none">
