@@ -29,16 +29,65 @@ function normalizeBoard(raw: RawBoard): Board {
   };
 }
 
-type RawCard = Partial<Card> & { name?: string };
+export function normalizeLabel(raw: unknown): Label {
+  if (!raw || typeof raw !== "object") {
+    return { id: "", publicId: "", name: "", color: "#3b82f6", boardId: "" };
+  }
+  const row = raw as Record<string, unknown>;
+  const nested =
+    "label" in row && row.label && typeof row.label === "object"
+      ? (row.label as Record<string, unknown>)
+      : row;
+  const id = String(nested.id ?? nested.publicId ?? "");
+  return {
+    id,
+    publicId: String(nested.publicId ?? nested.id ?? id),
+    name: String(nested.name ?? ""),
+    color: String(
+      nested.colourCode ?? nested.color ?? "#3b82f6",
+    ),
+    boardId: String(nested.boardId ?? ""),
+  };
+}
 
-function normalizeCard(raw: RawCard): Card {
+function normalizeCardLabels(raw: { labels?: unknown }): Label[] {
+  if (!Array.isArray(raw.labels) || raw.labels.length === 0) {
+    return [];
+  }
+  return raw.labels
+    .map(normalizeLabel)
+    .filter((label) => label.id.length > 0 && label.name.length > 0);
+}
+
+type RawCard = Partial<Card> & {
+  name?: string;
+  labels?: unknown;
+  list?: { publicId?: string; name?: string };
+};
+
+function normalizeCard(raw: RawCard, listId?: string): Card {
+  const id = String(raw.id ?? raw.publicId ?? "");
+  const labels = normalizeCardLabels(raw);
+  const resolvedListId = String(
+    raw.listId ?? raw.list?.publicId ?? listId ?? "",
+  );
   return {
     ...(raw as Card),
-    id: String(raw.id ?? raw.publicId ?? ""),
-    publicId: String(raw.publicId ?? raw.id ?? ""),
+    id,
+    publicId: String(raw.publicId ?? raw.id ?? id),
     title: raw.title ?? raw.name ?? "",
     description: raw.description ?? null,
-    listId: String(raw.listId ?? ""),
+    listId: resolvedListId,
+    list: raw.list?.publicId
+      ? { publicId: raw.list.publicId, name: raw.list.name ?? "" }
+      : (raw as Card).list,
+    labels,
+    members: Array.isArray(raw.members)
+      ? raw.members.map(String)
+      : Array.isArray((raw as { assignedWorkspaceMemberPublicIds?: string[] }).assignedWorkspaceMemberPublicIds,)
+        ? (raw as { assignedWorkspaceMemberPublicIds: string[] })
+            .assignedWorkspaceMemberPublicIds
+        : raw.members,
   };
 }
 
@@ -102,7 +151,82 @@ export async function deleteBoard(
 }
 
 // ── Lists ───────────────────────────────────────────────────────────────────
-type RawListWithCards = BoardList & { cards?: RawCard[] };
+type RawListWithCards = {
+  id?: string | number;
+  publicId?: string;
+  name?: string;
+  title?: string;
+  index?: number;
+  position?: number;
+  boardId?: string | number;
+  cards?: RawCard[];
+};
+
+function normalizeListRow(
+  raw: RawListWithCards,
+  boardId: string,
+): BoardList & { cards: Card[] } {
+  const listId = String(raw.publicId ?? raw.id ?? "");
+  const cards = Array.isArray(raw.cards)
+    ? raw.cards.map((card) => normalizeCard(card, listId))
+    : [];
+
+  return {
+    id: listId,
+    publicId: listId,
+    name: raw.name ?? raw.title ?? "",
+    position:
+      typeof raw.index === "number"
+        ? raw.index
+        : typeof raw.position === "number"
+          ? raw.position
+          : 0,
+    boardId: String(raw.boardId ?? boardId),
+    cards,
+  };
+}
+
+/** Board detail includes cards with labels (BoardMapper); prefer over lists-only API. */
+async function fetchListsFromBoardDetail(
+  workspaceId: string,
+  boardId: string,
+): Promise<(BoardList & { cards: Card[] })[]> {
+  const { data } = await api.get<
+    { lists?: RawListWithCards[]; allLists?: RawListWithCards[] } | {
+      data: { lists?: RawListWithCards[]; allLists?: RawListWithCards[] };
+    }
+  >(BOARDS.DETAIL(workspaceId, boardId));
+  const board = unwrap(data);
+  const lists = board.lists ?? board.allLists;
+  if (!Array.isArray(lists) || lists.length === 0) {
+    return [];
+  }
+  return lists.map((list) => normalizeListRow(list, boardId));
+}
+
+async function enrichCardsWithLabels(cards: Card[]): Promise<Card[]> {
+  return Promise.all(
+    cards.map(async (card) => {
+      if (card.labels && card.labels.length > 0) {
+        return card;
+      }
+      const cardId = card.publicId ?? card.id;
+      if (!cardId) {
+        return { ...card, labels: [] };
+      }
+      try {
+        const detailed = await getCard(cardId);
+        return {
+          ...card,
+          ...detailed,
+          labels: detailed.labels ?? [],
+        };
+      } catch {
+        return { ...card, labels: [] };
+      }
+    }),
+  );
+}
 
 async function fetchCardsForList(listId: string): Promise<Card[]> {
   try {
@@ -110,14 +234,16 @@ async function fetchCardsForList(listId: string): Promise<Card[]> {
       LISTS.CARDS(listId),
     );
     const items = unwrap<RawCard[]>(data);
-    return Array.isArray(items) ? items.map(normalizeCard) : [];
+    if (!Array.isArray(items)) return [];
+    const cards = items.map((raw) => normalizeCard(raw, listId));
+    return enrichCardsWithLabels(cards);
   } catch {
     // Endpoint may not be exposed yet on the server — fall back to empty.
     return [];
   }
 }
 
-export async function listBoardLists(
+async function fetchListsFromListsEndpoint(
   workspaceId: string,
   boardId: string,
 ): Promise<(BoardList & { cards: Card[] })[]> {
@@ -129,13 +255,37 @@ export async function listBoardLists(
 
   return Promise.all(
     items.map(async (l) => {
+      const listId = String(l.publicId ?? l.id ?? "");
       const embedded = Array.isArray(l.cards) ? l.cards : null;
-      const cards = embedded
-        ? embedded.map(normalizeCard)
-        : await fetchCardsForList(String(l.id ?? l.publicId ?? ""));
-      return { ...l, cards };
+      let cards = embedded
+        ? embedded.map((card) => normalizeCard(card, listId))
+        : await fetchCardsForList(listId);
+
+      const missingLabels = cards.some(
+        (card) => !card.labels || card.labels.length === 0,
+      );
+      if (missingLabels) {
+        cards = await enrichCardsWithLabels(cards);
+      }
+
+      return normalizeListRow({ ...l, cards }, boardId);
     }),
   );
+}
+
+export async function listBoardLists(
+  workspaceId: string,
+  boardId: string,
+): Promise<(BoardList & { cards: Card[] })[]> {
+  try {
+    const fromDetail = await fetchListsFromBoardDetail(workspaceId, boardId);
+    if (fromDetail.length > 0) {
+      return fromDetail;
+    }
+  } catch {
+    // Fall through to lists endpoint.
+  }
+  return fetchListsFromListsEndpoint(workspaceId, boardId);
 }
 
 export interface CreateListRequest {
@@ -201,8 +351,6 @@ export async function getCard(cardId: string): Promise<Card> {
 export interface UpdateCardRequest {
   title?: string;
   description?: string | null;
-  targetListId?: string;
-  newIndex?: number;
 }
 
 export async function updateCard(
@@ -211,6 +359,22 @@ export async function updateCard(
 ): Promise<Card> {
   const { data } = await api.patch<RawCard | { data: RawCard }>(
     CARDS.UPDATE(cardId),
+    payload,
+  );
+  return normalizeCard(unwrap<RawCard>(data));
+}
+
+export interface MoveCardRequest {
+  targetListId: string;
+  newIndex?: number;
+}
+
+export async function moveCard(
+  cardId: string,
+  payload: MoveCardRequest,
+): Promise<Card> {
+  const { data } = await api.patch<RawCard | { data: RawCard }>(
+    CARDS.MOVE(cardId),
     payload,
   );
   return normalizeCard(unwrap<RawCard>(data));
@@ -256,23 +420,40 @@ export async function assignMemberToCard(
   cardId: string,
   workspaceMemberPublicId: string,
 ): Promise<void> {
-  await api.post(CARDS.ASSIGN_MEMBER(cardId), { workspaceMemberPublicId });
+  await api.post(CARDS.ASSIGN_MEMBER(cardId), { 'workspaceMemberPublicId': workspaceMemberPublicId });
 }
 
 export async function removeMemberFromCard(
   cardId: string,
   memberId: string,
 ): Promise<void> {
+  console.log(`Removing member ${memberId} from card ${cardId}`)
   await api.delete(CARDS.REMOVE_MEMBER(cardId, memberId));
 }
 
 // ── Labels ──────────────────────────────────────────────────────────────────
 export async function listBoardLabels(boardId: string): Promise<Label[]> {
-  const { data } = await api.get<Label[] | { data: Label[] }>(
+  const { data } = await api.get<any[] | { data: any[] }>(
     LABELS.LIST(boardId),
   );
-  const items = unwrap<Label[]>(data);
-  return Array.isArray(items) ? items : [];
+  const items = unwrap<any[]>(data);
+  return Array.isArray(items) ? items.map(normalizeLabel) : [];
+}
+
+export interface CreateLabelRequest {
+  name: string;
+  colourCode: string;
+}
+
+export async function createLabel(
+  boardId: string,
+  payload: CreateLabelRequest,
+): Promise<Label> {
+  const { data } = await api.post<any | { data: any }>(
+    LABELS.LIST(boardId),
+    payload,
+  );
+  return normalizeLabel(unwrap<any>(data));
 }
 
 export interface UpdateLabelRequest {
@@ -285,11 +466,15 @@ export async function updateLabel(
   labelId: string,
   payload: UpdateLabelRequest,
 ): Promise<Label> {
-  const { data } = await api.patch<Label | { data: Label }>(
+  const body = {
+    name: payload.name,
+    colourCode: payload.color ?? undefined,
+  };
+  const { data } = await api.patch<any | { data: any }>(
     LABELS.UPDATE(boardId, labelId),
-    payload,
+    body,
   );
-  return unwrap<Label>(data);
+  return normalizeLabel(unwrap<any>(data));
 }
 
 export async function deleteLabel(
@@ -298,6 +483,7 @@ export async function deleteLabel(
 ): Promise<void> {
   await api.delete(LABELS.DELETE(boardId, labelId));
 }
+
 
 // ── Board statistics (for statistic-service consumption) ────────────────────
 export async function getBoardMetrics<T = unknown>(): Promise<T> {

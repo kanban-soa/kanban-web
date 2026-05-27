@@ -63,6 +63,7 @@ export const CARDS = {
   DETAIL: (cardId: string) => `/api/v1/boards/cards/${cardId}`,
   UPDATE: (cardId: string) => `/api/v1/boards/cards/${cardId}`,
   DELETE: (cardId: string) => `/api/v1/boards/cards/${cardId}`,
+  MOVE: (cardId: string) => `/api/v1/boards/cards/${cardId}/move`,
   ATTACH_LABEL: (cardId: string) => `/api/v1/boards/cards/${cardId}/labels`,
   DETACH_LABEL: (cardId: string, labelId: string) =>
     `/api/v1/boards/cards/${cardId}/labels/${labelId}`,

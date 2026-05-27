@@ -12,6 +12,7 @@ import {
   createCard,
   getCard,
   updateCard,
+  moveCard,
   deleteCard,
   attachLabelToCard,
   detachLabelFromCard,
@@ -20,6 +21,7 @@ import {
   assignMemberToCard,
   removeMemberFromCard,
   listBoardLabels,
+  createLabel,
   updateLabel,
   deleteLabel,
   getBoardMetrics,
@@ -30,6 +32,7 @@ import {
   type UpdateBoardRequest,
   type CreateCardRequest,
   type UpdateCardRequest,
+  type MoveCardRequest,
   type CreateListRequest,
   type UpdateListRequest,
   type UpdateLabelRequest,
@@ -204,28 +207,6 @@ export function useUpdateCard(workspacePublicId: string, boardId: string) {
           if (!old) return old;
           const cardMatches = (c: Card) =>
             c.id === cardId || c.publicId === cardId;
-
-          // List-change: move the card between source and target list.
-          if (payload.targetListId !== undefined) {
-            let moving: Card | undefined;
-            const without = old.map((l) => {
-              const cards = l.cards ?? [];
-              const found = cards.find(cardMatches);
-              if (!found) return l;
-              moving = { ...found, listId: payload.targetListId! };
-              return { ...l, cards: cards.filter((c) => !cardMatches(c)) };
-            });
-            if (!moving) return old;
-            return without.map((l) => {
-              const matches =
-                l.id === payload.targetListId ||
-                l.publicId === payload.targetListId;
-              if (!matches) return l;
-              return { ...l, cards: [...(l.cards ?? []), moving!] };
-            });
-          }
-
-          // Field update: patch the card in-place.
           return old.map((l) => ({
             ...l,
             cards: (l.cards ?? []).map((c) =>
@@ -244,6 +225,90 @@ export function useUpdateCard(workspacePublicId: string, boardId: string) {
     },
     onSuccess: (_data, { cardId }) => {
       queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
+    },
+  });
+}
+
+export function useMoveCard(workspacePublicId: string, boardId: string) {
+  const queryClient = useQueryClient();
+  const listsKey = ["boards", workspacePublicId, boardId, "lists"] as const;
+
+  return useMutation({
+    mutationFn: ({
+      cardId,
+      payload,
+    }: {
+      cardId: string;
+      payload: MoveCardRequest;
+    }) => moveCard(cardId, payload),
+    onMutate: async ({ cardId, payload }) => {
+      await queryClient.cancelQueries({ queryKey: listsKey });
+      const previous =
+        queryClient.getQueryData<(BoardList & { cards?: Card[] })[]>(listsKey);
+
+      queryClient.setQueryData<(BoardList & { cards?: Card[] })[]>(
+        listsKey,
+        (old) => {
+          if (!old) return old;
+          const cardMatches = (c: Card) =>
+            c.id === cardId || c.publicId === cardId;
+
+          let moving: Card | undefined;
+          const without = old.map((l) => {
+            const cards = l.cards ?? [];
+            const found = cards.find(cardMatches);
+            if (!found) return l;
+            moving = { ...found, listId: payload.targetListId };
+            return { ...l, cards: cards.filter((c) => !cardMatches(c)) };
+          });
+          if (!moving) return old;
+          return without.map((l) => {
+            const matches =
+              l.id === payload.targetListId ||
+              l.publicId === payload.targetListId;
+            if (!matches) return l;
+            return { ...l, cards: [...(l.cards ?? []), moving!] };
+          });
+        },
+      );
+
+      // Optimistically update the card-detail cache so the inline "list" field
+      // reflects the new column immediately.
+      const previousCard = queryClient.getQueryData<Card>(["cards", cardId]);
+      const lists = queryClient.getQueryData<(BoardList & { cards?: Card[] })[]>(
+        listsKey,
+      );
+      const targetList = lists?.find(
+        (l) => l.id === payload.targetListId || l.publicId === payload.targetListId,
+      );
+      if (previousCard) {
+        queryClient.setQueryData<Card>(["cards", cardId], {
+          ...previousCard,
+          listId: payload.targetListId,
+          list: targetList
+            ? {
+                publicId: targetList.publicId ?? targetList.id,
+                name: (targetList as { name?: string; title?: string }).name
+                  ?? (targetList as { title?: string }).title
+                  ?? "",
+              }
+            : previousCard.list,
+        });
+      }
+
+      return { previous, previousCard };
+    },
+    onError: (_err, { cardId }, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listsKey, context.previous);
+      }
+      if (context?.previousCard) {
+        queryClient.setQueryData(["cards", cardId], context.previousCard);
+      }
+    },
+    onSuccess: (_data, { cardId }) => {
+      queryClient.invalidateQueries({ queryKey: ["cards", cardId] });
+      queryClient.invalidateQueries({ queryKey: listsKey });
     },
   });
 }
@@ -436,6 +501,18 @@ export function useBoardLabels(boardId: string) {
     enabled: !!boardId,
   });
 }
+
+export function useCreateLabel(boardId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; color: string }) =>
+      createLabel(boardId, { name: payload.name, colourCode: payload.color }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boards", boardId, "labels"] });
+    },
+  });
+}
+
 
 export function useUpdateLabel(boardId: string) {
   const queryClient = useQueryClient();

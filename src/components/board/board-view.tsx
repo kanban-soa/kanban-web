@@ -26,7 +26,7 @@ import {
   useUpdateList,
   useDeleteList,
   useCreateCard,
-  useUpdateCard,
+  useMoveCard,
   useAttachLabelToCard,
   useDetachLabelFromCard,
   useAssignMemberToCard,
@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { LabelManagementDialog } from "@/components/board/label-management-dialog";
 
 type DisplayCard = {
   id: Id;
@@ -124,7 +125,7 @@ export function BoardView({
   const createListMut = useCreateList(workspaceId, boardId);
   const updateListMut = useUpdateList(workspaceId, boardId);
   const deleteListMut = useDeleteList(workspaceId, boardId);
-  const updateCardMut = useUpdateCard(workspaceId, boardId);
+  const moveCardMut = useMoveCard(workspaceId, boardId);
   const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
   const detachLabelMut = useDetachLabelFromCard(workspaceId, boardId);
   const assignMemberMut = useAssignMemberToCard(workspaceId, boardId);
@@ -177,6 +178,7 @@ export function BoardView({
   const [isListOpen, setIsListOpen] = React.useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
+  const [isLabelManagerOpen, setIsLabelManagerOpen] = React.useState(false);
   const [boardTitle, setBoardTitle] = React.useState(board?.title ?? "");
   const [boardDescription, setBoardDescription] = React.useState(
     board?.description ?? "",
@@ -291,6 +293,9 @@ export function BoardView({
                   <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
                     Edit Board
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setIsLabelManagerOpen(true)}>
+                    Manage Labels
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setIsDeleteModalOpen(true)}
                     className="text-red-600"
@@ -338,6 +343,12 @@ export function BoardView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LabelManagementDialog
+        boardId={String(boardId)}
+        open={isLabelManagerOpen}
+        onOpenChange={setIsLabelManagerOpen}
+      />
 
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent>
@@ -390,12 +401,22 @@ export function BoardView({
                   })
                 }
                 onDeleteList={() => deleteListMut.mutate(list.id)}
-                onMoveCard={(cardId, newListId) =>
-                  updateCardMut.mutate({
-                    cardId,
-                    payload: { targetListId: newListId },
-                  })
-                }
+                onMoveCard={(cardId, newListId) => {
+                  // Skip no-op drops (dropping onto the same list).
+                  const currentList = lists.find((l) =>
+                    l.cards.some((c) => c.id === cardId),
+                  );
+                  if (currentList?.id === newListId) return;
+                  moveCardMut.mutate(
+                    {
+                      cardId,
+                      payload: { targetListId: newListId },
+                    },
+                    {
+                      onError: () => toast.error("Failed to move card"),
+                    },
+                  );
+                }}
                 onToggleLabel={toggleLabelOnCard}
                 onToggleMember={toggleMemberOnCard}
                 onSetDueDate={setDueDateOnCard}
@@ -749,10 +770,15 @@ function CardItem({
   const [memberQuery, setMemberQuery] = React.useState("");
 
   const detailHref = `/workspaces/${workspaceId}/boards/${boardId}/cards/${card.id}`;
-  const memberLabel = (publicId: string) => {
-    const m = workspaceMembers.find((mm) => mm.publicId === publicId);
-    return m?.name ?? m?.email ?? publicId;
+  const memberLabel = (publicId: string): string => {
+    const m = workspaceMembers.find((mm) => String(mm.id) === publicId);
+    const email = m?.email?.trim();
+    const shortEmail = email ? email.split("@")[0] : "";
+    return shortEmail || m?.name?.trim() || email || publicId || "Member";
   };
+
+  const memberInitial = (publicId: string) =>
+    memberLabel(publicId).charAt(0).toUpperCase() || "?";
 
   const filteredMembers = workspaceMembers.filter((m) => {
     const haystack = (m.name ?? m.email ?? "").toLowerCase();
@@ -862,17 +888,18 @@ function CardItem({
                 </div>
               ) : (
                 filteredMembers.map((m) => {
-                  const isAssigned = card.memberIds.includes(m.publicId);
+                  const memberId = String(m.id);
+                  const isAssigned = card.memberIds.includes(memberId);
                   return (
                     <button
-                      key={m.publicId}
+                      key={memberId}
                       type="button"
                       onClick={() =>
-                        onToggleMember(card.id, m.publicId, isAssigned)
+                        onToggleMember(card.id, memberId, isAssigned)
                       }
                       className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
                     >
-                      <span>{m.name ?? m.email}</span>
+                      <span>{memberLabel(memberId)}</span>
                       {isAssigned && (
                         <Check className="size-4 text-muted-foreground" />
                       )}
@@ -957,7 +984,7 @@ function CardItem({
                 title={memberLabel(mid)}
                 className="inline-flex size-5 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase"
               >
-                {memberLabel(mid).charAt(0)}
+                {memberInitial(mid)}
               </span>
             ))}
             {card.memberIds.length > 4 && (

@@ -168,6 +168,7 @@ export interface Card {
   title: string;
   description?: string | null;
   listId: string;
+  list?: { publicId: string; name: string };
   position?: number;
   dueDate?: string | null;
   labels?: Label[];

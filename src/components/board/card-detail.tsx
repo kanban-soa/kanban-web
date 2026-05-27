@@ -3,8 +3,19 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, X, Check, Plus } from "lucide-react";
+import {
+  Trash2,
+  X,
+  Check,
+  Plus,
+  MoreHorizontal,
+  Paperclip,
+  CheckCircle,
+  ArrowUp,
+} from "lucide-react";
 import { toast } from "sonner";
+import { formatDistanceToNow, format } from "date-fns";
+import { Calendar as UICalendar } from "@/components/ui/calendar";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +27,10 @@ import {
 import { cn } from "@/lib/utils";
 import type { Id } from "@/lib/board/types";
 import {
+  useBoard,
   useBoardLists,
   useBoardLabels,
+  useCreateLabel,
   useCard,
   useUpdateCard,
   useDeleteCard,
@@ -28,7 +41,9 @@ import {
   useAssignMemberToCard,
   useRemoveMemberFromCard,
 } from "@/hooks/use-board";
-import { useMember } from "@/hooks/use-workspaces";
+import { useMember, useWorkspace } from "@/hooks/use-workspaces";
+import { useWorkspaceContext } from "@/contexts/workspace.context";
+import { useWorkspaceActivities } from "@/hooks/use-statistics";
 import type { Label as ApiLabel } from "@/lib/api/types";
 import {
   Dialog,
@@ -60,6 +75,15 @@ const LABEL_COLORS = [
 
 type DisplayList = { id: string; title: string };
 
+function formatInitials(name: string) {
+  if (!name) return "??";
+  const parts = name.split(" ");
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
 export function CardDetailPage({
   workspaceId,
   boardId,
@@ -71,11 +95,23 @@ export function CardDetailPage({
 }) {
   const router = useRouter();
 
+  const { data: workspace } = useWorkspace(workspaceId);
+  const { data: board } = useBoard(workspaceId, boardId);
   const { data: card, isLoading: isCardLoading } = useCard(cardId);
   const { data: rawLists = [] } = useBoardLists(workspaceId, boardId);
   const { data: boardLabels = [] } = useBoardLabels(boardId);
   const { data: workspaceMembers = [] } = useMember(workspaceId);
+  const { currentWorkspace } = useWorkspaceContext();
+  const workspaceContextId = currentWorkspace?.id
+    ? String(currentWorkspace.id)
+    : undefined;
+  const { data: activitiesData } = useWorkspaceActivities(workspaceContextId, {
+    limit: 50,
+    entityType: "card",
+    entityId: String(cardId),
+  });
 
+  const createLabelMut = useCreateLabel(boardId);
   const updateCardMut = useUpdateCard(workspaceId, boardId);
   const deleteCardMut = useDeleteCard(workspaceId, boardId);
   const attachLabelMut = useAttachLabelToCard(workspaceId, boardId);
@@ -106,13 +142,21 @@ export function CardDetailPage({
     [card?.members],
   );
 
+  const cardActivities = React.useMemo(() => {
+    if (!activitiesData?.items) return [];
+    const internalId = String(cardId);
+    return activitiesData.items.filter(
+      (a) => a.entityType === "card" && a.entityId === internalId,
+    );
+  }, [activitiesData, cardId]);
+
   const [title, setTitle] = React.useState(card?.title ?? "");
   const [description, setDescription] = React.useState(card?.description ?? "");
+  const [comment, setComment] = React.useState("");
   const [listId, setListId] = React.useState(card?.listId ?? "");
   const [dueDate, setDueDate] = React.useState(card?.dueDate ?? "");
   const [labelInput, setLabelInput] = React.useState("");
   const [labelColor, setLabelColor] = React.useState("#3b82f6");
-  const [memberInput, setMemberInput] = React.useState("");
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [isCreateLabelOpen, setIsCreateLabelOpen] = React.useState(false);
 
@@ -133,12 +177,23 @@ export function CardDetailPage({
   };
 
   const createAndAddLabel = () => {
-    toast.error(
-      "Creating labels isn't supported yet — backend endpoint not exposed.",
+    if (!labelInput.trim()) return;
+    createLabelMut.mutate(
+      { name: labelInput.trim(), color: labelColor },
+      {
+        onSuccess: (newLabel) => {
+          attachLabelMut.mutate({ cardId, labelId: newLabel.publicId });
+          toast.success("Label created and attached successfully!");
+          setLabelInput("");
+          setIsCreateLabelOpen(false);
+        },
+        onError: () => {
+          toast.error("Failed to create label.");
+        },
+      },
     );
-    setLabelInput("");
-    setIsCreateLabelOpen(false);
   };
+
 
   const toggleMember = (workspaceMemberPublicId: string) => {
     const isAssigned = cardMemberIds.includes(workspaceMemberPublicId);
@@ -159,175 +214,202 @@ export function CardDetailPage({
     }
   };
 
-  const memberLabel = (publicId: string) =>
-    workspaceMembers.find((m) => m.publicId === publicId)?.name ??
-    workspaceMembers.find((m) => m.publicId === publicId)?.email ??
-    publicId;
+  const memberLabel = (publicId: string): string => {
+    const member = workspaceMembers.find((m) => String(m.id) === publicId);
+    const email = member?.email?.trim();
+    const shortEmail = email ? email.split("@")[0] : "";
+    return shortEmail || member?.name?.trim() || email || publicId || "Member";
+  };
 
-  const filteredMembers = workspaceMembers.filter((m) => {
-    const haystack = (m.name ?? m.email ?? "").toLowerCase();
-    return haystack.includes(memberInput.trim().toLowerCase());
-  });
+  const memberInitial = (publicId: string) =>
+    memberLabel(publicId).charAt(0).toUpperCase() || "?";
+
+  const filteredMembers = workspaceMembers;
 
   if (isCardLoading) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">
-          Loading…
-        </div>
+      <div className="flex h-full items-center justify-center">
+        <div className="text-sm text-muted-foreground">Loading card…</div>
       </div>
     );
   }
 
   if (!card) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border bg-card p-8 text-sm text-muted-foreground">
-          Card not found.
-        </div>
+      <div className="flex h-full items-center justify-center">
+        <div className="text-sm text-muted-foreground">Card not found.</div>
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full">
-      <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between gap-3 px-6 py-4">
-          <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">card</div>
-            <div className="truncate text-lg font-semibold tracking-tight">
-              {card.title}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={() =>
-                router.push(`/workspaces/${workspaceId}/boards/${boardId}`)
-              }
-            >
-              <X />
-              Close
-            </Button>
-          </div>
+    <div className="flex h-full flex-col bg-background">
+      {/* Header / Breadcrumbs */}
+      <div className="flex items-center justify-between border-b px-6 py-2.5">
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <span className="hover:text-foreground transition-colors cursor-default">
+            {workspace?.name || "Workspace"}
+          </span>
+          <span className="text-muted-foreground/40 text-[10px]">›</span>
+          <Link
+            href={`/workspaces/${workspaceId}/boards/${boardId}`}
+            className="hover:text-foreground transition-colors"
+          >
+            {board?.title || "Board"}
+          </Link>
+          <span className="text-muted-foreground/40 text-[10px]">›</span>
+          <span className="font-medium text-foreground/60 truncate max-w-[150px]">
+            {card.publicId || card.title}
+          </span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={() =>
+              router.push(`/workspaces/${workspaceId}/boards/${boardId}`)
+            }
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2  px-2 py-2 lg:grid-cols-[1fr_420px]">
-        <div className="rounded-xl border bg-card p-5">
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm font-semibold">Title</div>
-              <div className="mt-2">
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onBlur={() => {
-                    if (title !== card.title) {
-                      updateCardMut.mutate({
-                        cardId,
-                        payload: { title },
-                      });
-                    }
-                  }}
-                />
-              </div>
-            </div>
+      <div className="grid flex-1 overflow-hidden lg:grid-cols-[1fr_300px]">
+        {/* Main Content */}
+        <div className="overflow-y-auto px-8 py-6">
+          <div className="max-w-3xl space-y-6">
+            {/* Title */}
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => {
+                if (title !== card.title) {
+                  updateCardMut.mutate({ cardId, payload: { title } });
+                }
+              }}
+              className="w-full bg-transparent text-2xl font-bold outline-none border-none p-0 focus:ring-0"
+              placeholder="Card title"
+            />
 
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">Description</div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() =>
-                    updateCardMut.mutate({
-                      cardId,
-                      payload: { description },
-                    })
-                  }
-                >
-                  Save
-                </Button>
-              </div>
+            {/* Description */}
+            <div className="group relative">
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Add a description…"
-                className={cn(
-                  "mt-2 min-h-[180px] w-full rounded-xl border border-input bg-transparent p-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                )}
+                onBlur={() => {
+                  if (description !== card.description) {
+                    updateCardMut.mutate({ cardId, payload: { description } });
+                  }
+                }}
+                placeholder="Add description... (type '/' to open commands or '@' to mention)"
+                className="w-full min-h-[100px] bg-transparent text-sm leading-relaxed outline-none border-none p-0 resize-none focus:ring-0 placeholder:text-muted-foreground/50"
               />
+              <div className="flex items-center gap-4 py-3 text-muted-foreground/30 border-b">
+                <CheckCircle className="h-3.5 w-3.5" />
+                <div className="flex-1" />
+                <Paperclip className="h-3.5 w-3.5" />
+              </div>
+            </div>
+
+            {/* Activity Section */}
+            <div className="space-y-4 pt-2">
+              <h3 className="text-base font-bold">Activity</h3>
+
+              <div className="relative space-y-5 pl-2">
+                {/* Vertical Line */}
+                <div className="absolute left-[17px] top-2 bottom-2 w-0.5 bg-muted/60" />
+
+                {cardActivities.length === 0 && (
+                  <div className="text-xs text-muted-foreground pl-10">
+                    No activity yet.
+                  </div>
+                )}
+
+                {cardActivities.map((activity) => {
+                  const member = workspaceMembers.find(
+                    (m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId
+                  );
+                  const actorName = activity.metadata?.actor?.username || member?.name || "Someone";
+
+                  return (
+                    <div key={activity.id} className="relative flex gap-4 pl-0">
+                      <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
+                        {formatInitials(actorName)}
+                      </div>
+                      <div className="flex flex-col text-[13px] pt-1.5">
+                        <div>
+                          <span className="font-semibold">{actorName}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {activity.actionType.replace("card.", "")}{" "}
+                            <span className="font-medium text-foreground/80">{activity.metadata?.title || "the card"}</span>
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Comment Box */}
+              <div className="mt-6 relative flex flex-col gap-2 rounded-xl border bg-muted/10 p-3 focus-within:ring-1 focus-within:ring-ring transition-all">
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Add comment... (type '/' to open commands or '@' to mention)"
+                  className="min-h-[60px] w-full bg-transparent text-xs outline-none border-none resize-none focus:ring-0"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    size="icon"
+                    className="h-7 w-7 rounded-full"
+                    disabled={!comment.trim()}
+                    onClick={() => {
+                      toast.info("Comments aren't supported yet.");
+                      setComment("");
+                    }}
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-6 rounded-xl border bg-card p-5">
-          <div className="grid grid-cols-[100px_1fr] items-start gap-4 text-sm">
-            <div className="text-muted-foreground pt-1.5">List</div>
-            <div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="h-8 justify-start px-2 font-normal hover:bg-muted -ml-2"
-                  >
-                    {lists.find((l) => l.id === listId)?.title ||
-                      "Select list"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-56 p-2">
-                  <div className="space-y-1">
-                    {lists.map((l) => {
-                      const isActive = l.id === listId;
-                      return (
-                        <button
-                          key={l.id}
-                          className="flex w-full items-center justify-between rounded px-2 py-1.5 text-sm hover:bg-muted text-left"
-                          onClick={() => {
-                            setListId(l.id);
-                            updateCardMut.mutate({
-                              cardId,
-                              payload: { targetListId: l.id },
-                            });
-                          }}
-                        >
-                          <span
-                            className={isActive ? "font-medium" : "font-normal"}
-                          >
-                            {l.title}
-                          </span>
-                          {isActive && (
-                            <Check className="h-4 w-4 text-gray-500" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </PopoverContent>
-              </Popover>
+        {/* Sidebar */}
+        <div className="border-l bg-muted/[0.03] px-8 py-8 space-y-8 text-[13px]">
+          <div className="grid grid-cols-[72px_1fr] items-center gap-3">
+            <div className="text-muted-foreground">List</div>
+            <div className="font-medium text-foreground">
+              {lists.find((l) => l.id === listId || l.id === card?.list?.publicId)
+                ?.title || "Unknown"}
             </div>
+          </div>
 
-            <div className="text-muted-foreground pt-2">Labels</div>
+          <div className="grid grid-cols-[72px_1fr] items-start gap-3">
+            <div className="text-muted-foreground pt-1">Labels</div>
             <div className="flex flex-wrap items-center gap-2">
               {cardLabels.map((label) => (
-                <span
+                <button
                   key={label.id}
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs text-white shadow-sm"
-                  style={{ backgroundColor: label.color }}
+                  type="button"
+                  onClick={() => toggleLabel(label)}
+                  className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs text-foreground shadow-sm hover:bg-muted/40"
                 >
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: label.color }}
+                  />
                   {label.name}
-                  <button
-                    type="button"
-                    className="text-white/80 hover:text-white ml-1"
-                    onClick={() => toggleLabel(label)}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
+                </button>
               ))}
               <Popover>
                 <PopoverTrigger asChild>
@@ -399,99 +481,117 @@ export function CardDetailPage({
             <div className="text-muted-foreground pt-2">Members</div>
             <div className="flex flex-wrap items-center gap-2">
               {cardMemberIds.map((memberId) => (
-                <span
+                <div
                   key={memberId}
-                  className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs shadow-sm"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border bg-background text-[11px] font-semibold text-muted-foreground"
+                  title={memberLabel(memberId)}
                 >
-                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-muted-foreground/20 text-[9px] uppercase">
-                    {memberLabel(memberId).charAt(0)}
-                  </div>
-                  {memberLabel(memberId)}
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground ml-1"
-                    onClick={() => toggleMember(memberId)}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
+                  {memberInitial(memberId)}
+                </div>
               ))}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    size="sm"
-                    className="h-7 rounded-full text-xs text-muted-foreground"
+                    size="icon"
+                    className="h-8 w-8 rounded-full border-dashed"
+                    aria-label="Add member"
                   >
-                    <Plus className="mr-1 h-3 w-3" /> Add member
+                    <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-56 p-3">
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold text-muted-foreground">
-                      Members
-                    </div>
-                    <Input
-                      value={memberInput}
-                      onChange={(e) => setMemberInput(e.target.value)}
-                      placeholder="Search..."
-                      className="h-8"
-                    />
-                    <div className="max-h-48 space-y-1 overflow-y-auto">
-                      {filteredMembers.map((m) => {
-                        const isChecked = cardMemberIds.includes(m.publicId);
+                <PopoverContent align="start" className="w-56 p-2">
+                  <div className="space-y-0.5">
+                    {filteredMembers.length === 0 ? (
+                      <div className="px-2 py-1 text-xs text-muted-foreground">
+                        No members.
+                      </div>
+                    ) : (
+                      filteredMembers.map((m) => {
+                        const memberId = String(m.id);
+                        const isChecked = cardMemberIds.includes(memberId);
                         return (
                           <button
-                            key={m.publicId}
-                            type="button"
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
-                            onClick={() => toggleMember(m.publicId)}
+                            key={memberId}
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted"
+                            onClick={() => toggleMember(memberId)}
                           >
-                            <span>{m.name ?? m.email}</span>
-                            {isChecked && (
-                              <Check className="h-4 w-4 text-gray-500" />
-                            )}
+                            <span
+                              className={
+                                "flex h-4 w-4 items-center justify-center rounded border " +
+                                (isChecked
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground/40")
+                              }
+                            >
+                              {isChecked && (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded-full bg-muted-foreground/20 text-[10px] flex items-center justify-center">
+                                {memberInitial(memberId)}
+                              </div>
+                              <span className="text-foreground">
+                                {memberLabel(memberId)}
+                              </span>
+                            </div>
                           </button>
                         );
-                      })}
-                      {filteredMembers.length === 0 && (
-                        <div className="px-2 py-1 text-xs text-muted-foreground">
-                          No matches.
-                        </div>
-                      )}
-                    </div>
+                      })
+                    )}
+                    <button
+                      type="button"
+                      className="mt-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Invite member
+                    </button>
                   </div>
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
 
-            <div className="text-muted-foreground pt-3">Due date</div>
-            <div>
-              <Input
-                type="date"
-                value={dueDate ? dueDate.slice(0, 10) : ""}
-                onChange={handleDueDateChange}
-                className="h-8 max-w-[150px] bg-transparent text-sm -ml-2 border-transparent hover:border-border focus:border-border px-2 focus-visible:ring-0"
-              />
+          <div className="grid grid-cols-[72px_1fr] items-center gap-3">
+            <div className="text-muted-foreground">Due date</div>
+            <div className="relative">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="h-8 w-full bg-transparent text-[13px] font-medium text-left focus:outline-none hover:underline">
+                    {dueDate ? format(new Date(dueDate), "MMMM d, yyyy") : "Set due date"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0 border-none shadow-2xl">
+                  <UICalendar
+                    mode="single"
+                    selected={dueDate ? new Date(dueDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        const isoDate = date.toISOString();
+                        setDueDate(isoDate);
+                        setDueDateMut.mutate({ cardId, dueDate: isoDate });
+                      } else {
+                        setDueDate("");
+                        clearDueDateMut.mutate(cardId);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+          </div>
 
-            <div className="col-span-2 pt-4">
-              <Button
-                variant="destructive"
-                size="sm"
-                type="button"
-                onClick={() => setIsDeleteOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete card
-              </Button>
-              <Link
-                href={`/workspaces/${workspaceId}/boards/${boardId}`}
-                className="ml-2 inline-flex h-8 items-center justify-center rounded-[min(var(--radius-md),12px)] px-3 text-[0.8rem] text-sm font-medium hover:bg-muted/50"
-              >
-                Back to board
-              </Link>
-            </div>
+          <div className="pt-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="justify-start text-destructive hover:text-destructive hover:bg-destructive/10 px-0"
+              onClick={() => setIsDeleteOpen(true)}
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" />
+              Delete card
+            </Button>
           </div>
         </div>
       </div>
@@ -500,7 +600,9 @@ export function CardDetailPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete card</DialogTitle>
-            <DialogDescription>This action cannot be undone.</DialogDescription>
+            <DialogDescription>
+              Are you sure? This action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
@@ -512,9 +614,7 @@ export function CardDetailPage({
                 deleteCardMut.mutate(cardId, {
                   onSuccess: () => {
                     setIsDeleteOpen(false);
-                    router.push(
-                      `/workspaces/${workspaceId}/boards/${boardId}`,
-                    );
+                    router.push(`/workspaces/${workspaceId}/boards/${boardId}`);
                   },
                   onError: () => toast.error("Failed to delete card"),
                 });
