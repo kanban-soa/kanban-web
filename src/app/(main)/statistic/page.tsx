@@ -45,6 +45,7 @@ import {
 } from "@/lib/api/statistics.api";
 import { Badge } from "@/components/ui/badge";
 import { MemberRequest, Board } from "@/lib/api/types";
+import { formatDistanceToNow, format } from "date-fns";
 
 const emptyPriorities: StatisticsPriority[] = [];
 
@@ -57,105 +58,138 @@ function formatInitials(value: string) {
   return value.slice(0, 2).toUpperCase();
 }
 
-function clampPercentage(value: number) {
-  return Math.min(100, Math.max(0, value));
+function formatMaybeDate(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return format(date, "MMM d, yyyy");
 }
 
-function buildPrioritySegments(priorities: StatisticsPriority[]) {
-  const total = priorities.reduce((acc, item) => acc + item.value, 0);
-  if (total <= 0) return [];
-  const normalized = priorities.map((item) => ({
-    ...item,
-    value: (item.value / total) * 100,
-  }));
-  let offset = 0;
-  return normalized.map((item) => {
-    const segment = {
-      ...item,
-      dashArray: `${item.value} ${100 - item.value}`,
-      dashOffset: -offset,
-    };
-    offset += item.value;
-    return segment;
-  });
+function formatActivityAge(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return formatDistanceToNow(date, { addSuffix: true });
 }
 
-function ActivityItem({
-  activity,
-  members,
-  boards,
-}: {
-  activity: Activity;
-  members: MemberRequest[];
-  boards: Board[];
-}) {
-  const dateFormatter = React.useMemo(() => {
-    return new Intl.DateTimeFormat("en-US", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  }, []);
+function normalizeChangeAction(action?: unknown): "added" | "removed" | "updated" {
+  if (!action) return "updated";
+  const value = String(action).toLowerCase();
+  if (value.includes("add")) return "added";
+  if (value.includes("remove") || value.includes("delete")) return "removed";
+  return "updated";
+}
 
-  const actorName = React.useMemo(() => {
-    if (activity.metadata?.actor?.username) return activity.metadata.actor.username;
-    const member = members.find((m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId);
-    return member?.name || activity.actorUserId;
-  }, [activity, members]);
-
-  const entityName = React.useMemo(() => {
-    // 1. Explicit title in metadata (common for cards)
-    if (activity.metadata?.title) return activity.metadata.title;
-    
-    // 2. Explicit name in metadata (common for boards, especially deletions)
-    if (activity.metadata?.name) return activity.metadata.name;
-    
-    // 3. Board name in metadata (common for board activities or card context)
-    if (activity.metadata?.boardName) return activity.metadata.boardName;
-    
-    // 4. Nested entity title
-    if (activity.metadata?.entity?.title) return activity.metadata.entity.title;
-    
-    // 5. Hook-based resolution for boards
-    if (activity.entityType === "board") {
-      const board = boards.find((b) => b.publicId === activity.entityId || b.id === activity.entityId);
-      return board?.title || activity.entityId;
-    }
-    
-    // 6. Fallback to ID
-    return activity.entityId;
-  }, [activity, boards]);
-
-  return (
-    <div className="flex items-center gap-4">
-      <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
-        {formatInitials(actorName)}
-      </div>
-      <div className="flex-1">
-        <p className="text-sm">
-          <span className="font-semibold text-primary">{actorName}</span>{" "}
-          <span className="italic">{activity.actionType}</span> on{" "}
-          <span className="font-semibold">{activity.entityType}</span>{" "}
-          <span className="text-muted-foreground">{entityName}</span>
-          {activity.entityType === "card" && activity.metadata?.listName && (
-            <>
-              {" "}
-              in <span className="font-medium">{activity.metadata.listName}</span>
-            </>
-          )}
-          {activity.entityType === "card" && activity.metadata?.boardName && (
-            <>
-              {" "}
-              of <span className="font-medium">{activity.metadata.boardName}</span>
-            </>
-          )}
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {dateFormatter.format(new Date(activity.createdAt))}
-        </p>
-      </div>
-      <Badge variant="outline">{activity.actionType.split(".")[1]}</Badge>
-    </div>
+function resolveMemberName(
+  members: MemberRequest[],
+  workspaceMemberPublicId?: string,
+): string {
+  if (!workspaceMemberPublicId) return "a member";
+  const target = String(workspaceMemberPublicId);
+  const member = members.find(
+    (m) =>
+      m.publicId === target ||
+      String(m.id) === target ||
+      m.userId === target,
   );
+  return member?.name || member?.email || "a member";
+}
+
+function resolveLabelName(metadata: Record<string, unknown>): string {
+  if (typeof metadata.labelName === "string" && metadata.labelName) {
+    return metadata.labelName;
+  }
+  const label = metadata.label as { name?: string } | undefined;
+  if (label?.name) return label.name;
+  if (metadata.labelId != null) return `label ${metadata.labelId}`;
+  return "a label";
+}
+
+function resolveListName(metadata: Record<string, unknown>, key: string): string {
+  const direct = metadata[key];
+  if (typeof direct === "string" && direct) return direct;
+  const id = metadata[`${key}Id`];
+  if (id != null) return `list ${id}`;
+  return "a list";
+}
+
+function getActivityMessage(activity: Activity, members: MemberRequest[]): string {
+  const fields: string[] = Array.isArray(activity.metadata?.fields)
+    ? activity.metadata.fields
+    : [];
+  const metadata = (activity.metadata ?? {}) as Record<string, unknown>;
+
+  if (activity.actionType === "card.created") return "created the card";
+  if (activity.actionType === "card.deleted") return "deleted the card";
+  if (activity.actionType === "card.archived") return "archived the card";
+  if (activity.actionType === "board.created") return "created the board";
+  if (activity.actionType === "board.deleted") return "deleted the board";
+  if (activity.actionType === "board.updated") return "updated the board";
+
+  if (activity.actionType !== "card.updated") {
+    return activity.actionType.replace(".", " ");
+  }
+
+  if (fields.includes("list") || fields.includes("index")) {
+    const fromListId = metadata.fromListId as number | string | undefined;
+    const toListId = metadata.toListId as number | string | undefined;
+    const listId = metadata.listId as string | undefined;
+    const fromIndex = metadata.fromIndex as number | undefined;
+    const toIndex = metadata.toIndex as number | undefined;
+
+    if (fromListId != null && toListId != null) {
+      const fromListName = resolveListName(metadata, "fromListName");
+      const toListName = resolveListName(metadata, "toListName");
+      if (String(fromListId) !== String(toListId)) {
+        return `moved the card from ${fromListName} (${fromIndex ?? "?"}) to ${toListName} (${toIndex ?? "?"})`;
+      }
+      return `moved the card within ${fromListName}`;
+    }
+
+    if (listId) {
+      const listName = resolveListName(metadata, "listName");
+      return `reordered cards in ${listName}`;
+    }
+
+    return "updated the card position";
+  }
+
+  if (fields.includes("dueDate")) {
+    const fromDueDate = metadata.fromDueDate as string | null | undefined;
+    const toDueDate = metadata.toDueDate as string | null | undefined;
+    if (!fromDueDate && toDueDate) {
+      return `set the due date to ${formatMaybeDate(toDueDate)}`;
+    }
+    if (fromDueDate && !toDueDate) {
+      return "removed the due date";
+    }
+    if (fromDueDate && toDueDate) {
+      return `changed the due date from ${formatMaybeDate(fromDueDate)} to ${formatMaybeDate(toDueDate)}`;
+    }
+    return "updated the due date";
+  }
+
+  if (fields.includes("title")) return "updated the card title";
+  if (fields.includes("description")) return "updated the card description";
+
+  if (fields.includes("label")) {
+    const action = normalizeChangeAction(
+      metadata.labelAction ?? metadata.action ?? metadata.operation,
+    );
+    return `${action} label ${resolveLabelName(metadata)}`;
+  }
+
+  if (fields.includes("member")) {
+    const action = normalizeChangeAction(
+      metadata.memberAction ?? metadata.action ?? metadata.operation,
+    );
+    const memberName = resolveMemberName(
+      members,
+      metadata.workspaceMemberPublicId as string | undefined,
+    );
+    return `${action} member ${memberName}`;
+  }
+
+  return "updated the card";
 }
 
 export default function StatisticPage() {
@@ -173,6 +207,11 @@ export default function StatisticPage() {
     currentWorkspace?.publicId
   );
   const [range, setRange] = React.useState<StatisticsRange>("30d");
+  const [selectedBoardId, setSelectedBoardId] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    setSelectedBoardId(undefined);
+  }, [selectedWorkspaceId]);
 
   React.useEffect(() => {
     if (currentWorkspace) {
@@ -187,11 +226,11 @@ export default function StatisticPage() {
     data: summary,
     isLoading: isStatsLoading,
     isError: isStatsError,
-  } = useStatisticsSummary(selectedWorkspaceId, range);
+  } = useStatisticsSummary(selectedWorkspaceId, range, selectedBoardId);
   const { data: activitiesData, isLoading: isActivitiesLoading } =
     useWorkspaceActivities(selectedWorkspaceId, {
       limit: 5,
-    });
+    }, selectedBoardId);
 
   const { data: members = [], isLoading: isMembersLoading } = useMember(selectedWorkspaceId ?? "");
   const { data: boards = [], isLoading: isBoardsLoading } = useBoards(selectedWorkspacePublicId ?? "");
@@ -212,10 +251,6 @@ export default function StatisticPage() {
   const activities = activitiesData?.items ?? [];
   const priorities = summary?.priorities ?? emptyPriorities;
   const workloads = summary?.workloads ?? [];
-  const prioritySegments = React.useMemo(
-    () => buildPrioritySegments(priorities),
-    [priorities],
-  );
 
 
   if (isLoadingWorkspaces && (!workspaces || workspaces.length === 0)) {
@@ -328,6 +363,49 @@ export default function StatisticPage() {
             </h1>
             <p className="text-sm text-muted-foreground">
               for the{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="font-black text-primary hover:opacity-80 transition-opacity inline-flex items-center gap-1 focus:outline-none">
+                    {selectedBoardId
+                      ? boards.find((b) => b.publicId === selectedBoardId)?.title ?? "Select Board"
+                      : "all"}
+                    <ChevronDown className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Filter by Board</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setSelectedBoardId(undefined)}
+                    className="cursor-pointer"
+                  >
+                    All Boards
+                    {!selectedBoardId && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        ✓
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {boards.map((board) => (
+                      <DropdownMenuItem
+                        key={board.publicId}
+                        onClick={() => setSelectedBoardId(board.publicId)}
+                        className="cursor-pointer"
+                      >
+                        <span className="flex-1 truncate">{board.title}</span>
+                        {selectedBoardId === board.publicId && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            ✓
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>{" "}
+              boards, for the{" "}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="font-medium text-foreground hover:opacity-80 transition-opacity inline-flex items-center gap-0.5 focus:outline-none">
@@ -453,65 +531,66 @@ export default function StatisticPage() {
 
           <div className="space-y-8">
             <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-              <h2 className="mb-6 text-xl font-black">Priority Breakdown</h2>
-              <div className="mx-auto flex w-48 flex-col items-center">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-black">Labels Breakdown</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Get a breakdown of work items.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3 text-xs text-muted-foreground">
+                <div className="grid grid-cols-[140px_1fr] items-center gap-4 font-semibold">
+                  <span>Type</span>
+                  <span>Distribution</span>
+                </div>
                 {isLoading ? (
-                  <>
-                    <Skeleton className="size-48 rounded-full" />
-                    <div className="mt-8 grid w-full gap-3">
-                      {Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton key={index} className="h-5 w-full" />
-                      ))}
-                    </div>
-                  </>
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className="grid grid-cols-[140px_1fr] items-center gap-4">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ))}
+                  </div>
                 ) : priorities.length === 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    No priority data available.
+                    No labels data available.
                   </div>
                 ) : (
-                  <>
-                    <div className="relative size-48">
-                      <svg className="size-full -rotate-90" viewBox="0 0 36 36">
-                        <circle
-                          cx="18"
-                          cy="18"
-                          fill="transparent"
-                          r="15.915"
-                          stroke="var(--muted)"
-                          strokeWidth="4"
-                        />
-                        {prioritySegments.map((priority) => (
-                          <circle
-                            key={priority.label}
-                            cx="18"
-                            cy="18"
-                            fill="transparent"
-                            r="15.915"
-                            stroke={priority.color}
-                            strokeDasharray={priority.dashArray}
-                            strokeDashoffset={priority.dashOffset}
-                            strokeWidth="4"
-                          />
-                        ))}
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-black">100%</span>
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                          Total cards
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-8 grid w-full gap-3">
-                      {priorities.map((priority) => (
-                        <LegendItem
+                  <div className="space-y-3">
+                    {priorities.map((priority) => {
+                      const valueLabel = formatPercent(priority.value);
+                      return (
+                        <div
                           key={priority.label}
-                          color={priority.color}
-                          label={priority.label}
-                          value={formatPercent(priority.value)}
-                        />
-                      ))}
-                    </div>
-                  </>
+                          className="grid grid-cols-[140px_1fr] items-center gap-4"
+                        >
+                          <div className="flex items-center gap-2 text-sm text-foreground">
+                            <span
+                              className="h-2.5 w-2.5 rounded-sm"
+                              style={{ backgroundColor: priority.color }}
+                            />
+                            <span className="font-medium">{priority.label}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="h-3 w-full overflow-hidden rounded-md bg-muted">
+                              <div
+                                className="h-full rounded-md"
+                                style={{
+                                  width: valueLabel,
+                                  backgroundColor: priority.color,
+                                }}
+                              />
+                            </div>
+                            <span className="w-12 text-right text-[10px] font-semibold text-muted-foreground">
+                              {valueLabel}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
@@ -578,22 +657,78 @@ export default function StatisticPage() {
   );
 }
 
-function LegendItem({
-  color,
-  label,
-  value,
+function ActivityItem({
+  activity,
+  members,
+  boards,
 }: {
-  color: string;
-  label: string;
-  value: string;
+  activity: Activity;
+  members: MemberRequest[];
+  boards: Board[];
 }) {
+  const actorName = React.useMemo(() => {
+    if (activity.metadata?.actor?.username) return activity.metadata.actor.username;
+    const member = members.find(
+      (m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId,
+    );
+    return member?.name || activity.actorUserId;
+  }, [activity, members]);
+
+  const entityName = React.useMemo(() => {
+    if (activity.metadata?.title) return activity.metadata.title;
+    if (activity.metadata?.name) return activity.metadata.name;
+    if (activity.metadata?.boardName) return activity.metadata.boardName;
+    if (activity.metadata?.entity?.title) return activity.metadata.entity.title;
+    if (activity.entityType === "board") {
+      const board = boards.find(
+        (b) => b.publicId === activity.entityId || b.id === activity.entityId,
+      );
+      return board?.title || activity.entityId;
+    }
+    return activity.entityId;
+  }, [activity, boards]);
+
+  const activityMessage = React.useMemo(
+    () => getActivityMessage(activity, members),
+    [activity, members],
+  );
+
+  const fullTimestamp = React.useMemo(() => {
+    const date = new Date(activity.createdAt);
+    if (Number.isNaN(date.getTime())) return activity.createdAt;
+    return date.toLocaleString();
+  }, [activity.createdAt]);
+
   return (
-    <div className="flex items-center justify-between text-xs">
-      <div className="flex items-center gap-2">
-        <div className="size-3 rounded-full" style={{ backgroundColor: color }} />
-        <span className="font-bold text-muted-foreground">{label}</span>
+    <div className="flex items-start gap-4 rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
+      <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
+        {formatInitials(actorName)}
       </div>
-      <span className="font-black">{value}</span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-primary">{actorName}</span>
+          <span className="text-muted-foreground">{activityMessage}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground/80">{entityName}</span>
+          {activity.entityType === "card" && activity.metadata?.listName && (
+            <span>in {activity.metadata.listName}</span>
+          )}
+          {activity.entityType === "card" && activity.metadata?.boardName && (
+            <span>of {activity.metadata.boardName}</span>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1">
+        <Badge variant="outline">{activity.actionType.split(".")[1]}</Badge>
+        <span className="text-[10px] text-muted-foreground" title={fullTimestamp}>
+          {formatActivityAge(activity.createdAt)}
+        </span>
+      </div>
     </div>
   );
+}
+
+function clampPercentage(value: number) {
+  return Math.min(100, Math.max(0, value));
 }

@@ -9,6 +9,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
 
 import { useMember } from "@/hooks/use-workspaces";
 import { useWorkspaceContext } from "@/contexts/workspace.context";
@@ -38,6 +39,140 @@ function formatInitials(value: string) {
   return value.slice(0, 2).toUpperCase();
 }
 
+function formatMaybeDate(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return format(date, "MMM d, yyyy");
+}
+
+function formatActivityAge(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return formatDistanceToNow(date, { addSuffix: true });
+}
+
+function normalizeChangeAction(action?: unknown): "added" | "removed" | "updated" {
+  if (!action) return "updated";
+  const value = String(action).toLowerCase();
+  if (value.includes("add")) return "added";
+  if (value.includes("remove") || value.includes("delete")) return "removed";
+  return "updated";
+}
+
+function resolveMemberName(
+  members: MemberRequest[],
+  workspaceMemberPublicId?: string,
+): string {
+  if (!workspaceMemberPublicId) return "a member";
+  const target = String(workspaceMemberPublicId);
+  const member = members.find(
+    (m) =>
+      m.publicId === target ||
+      String(m.id) === target ||
+      m.userId === target,
+  );
+  return member?.name || member?.email || "a member";
+}
+
+function resolveLabelName(metadata: Record<string, unknown>): string {
+  if (typeof metadata.labelName === "string" && metadata.labelName) {
+    return metadata.labelName;
+  }
+  const label = metadata.label as { name?: string } | undefined;
+  if (label?.name) return label.name;
+  if (metadata.labelId != null) return `label ${metadata.labelId}`;
+  return "a label";
+}
+
+function resolveListName(metadata: Record<string, unknown>, key: string): string {
+  const direct = metadata[key];
+  if (typeof direct === "string" && direct) return direct;
+  const id = metadata[`${key}Id`];
+  if (id != null) return `list ${id}`;
+  return "a list";
+}
+
+function getActivityMessage(activity: Activity, members: MemberRequest[]): string {
+  const fields: string[] = Array.isArray(activity.metadata?.fields)
+    ? activity.metadata.fields
+    : [];
+  const metadata = (activity.metadata ?? {}) as Record<string, unknown>;
+
+  if (activity.actionType === "card.created") return "created the card";
+  if (activity.actionType === "card.deleted") return "deleted the card";
+  if (activity.actionType === "card.archived") return "archived the card";
+  if (activity.actionType === "board.created") return "created the board";
+  if (activity.actionType === "board.deleted") return "deleted the board";
+  if (activity.actionType === "board.updated") return "updated the board";
+
+  if (activity.actionType !== "card.updated") {
+    return activity.actionType.replace(".", " ");
+  }
+
+  if (fields.includes("list") || fields.includes("index")) {
+    const fromListId = metadata.fromListId as number | string | undefined;
+    const toListId = metadata.toListId as number | string | undefined;
+    const listId = metadata.listId as string | undefined;
+    const fromIndex = metadata.fromIndex as number | undefined;
+    const toIndex = metadata.toIndex as number | undefined;
+
+    if (fromListId != null && toListId != null) {
+      const fromListName = resolveListName(metadata, "fromListName");
+      const toListName = resolveListName(metadata, "toListName");
+      if (String(fromListId) !== String(toListId)) {
+        return `moved the card from ${fromListName} (${fromIndex ?? "?"}) to ${toListName} (${toIndex ?? "?"})`;
+      }
+      return `moved the card within ${fromListName}`;
+    }
+
+    if (listId) {
+      const listName = resolveListName(metadata, "listName");
+      return `reordered cards in ${listName}`;
+    }
+
+    return "updated the card position";
+  }
+
+  if (fields.includes("dueDate")) {
+    const fromDueDate = metadata.fromDueDate as string | null | undefined;
+    const toDueDate = metadata.toDueDate as string | null | undefined;
+    if (!fromDueDate && toDueDate) {
+      return `set the due date to ${formatMaybeDate(toDueDate)}`;
+    }
+    if (fromDueDate && !toDueDate) {
+      return "removed the due date";
+    }
+    if (fromDueDate && toDueDate) {
+      return `changed the due date from ${formatMaybeDate(fromDueDate)} to ${formatMaybeDate(toDueDate)}`;
+    }
+    return "updated the due date";
+  }
+
+  if (fields.includes("title")) return "updated the card title";
+  if (fields.includes("description")) return "updated the card description";
+
+  if (fields.includes("label")) {
+    const action = normalizeChangeAction(
+      metadata.labelAction ?? metadata.action ?? metadata.operation,
+    );
+    return `${action} label ${resolveLabelName(metadata)}`;
+  }
+
+  if (fields.includes("member")) {
+    const action = normalizeChangeAction(
+      metadata.memberAction ?? metadata.action ?? metadata.operation,
+    );
+    const memberName = resolveMemberName(
+      members,
+      metadata.workspaceMemberPublicId as string | undefined,
+    );
+    return `${action} member ${memberName}`;
+  }
+
+  return "updated the card";
+}
+
 function ActivityItem({
   activity,
   members,
@@ -47,13 +182,6 @@ function ActivityItem({
   members: MemberRequest[];
   boards: Board[];
 }) {
-  const dateFormatter = React.useMemo(() => {
-    return new Intl.DateTimeFormat("en-US", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  }, []);
-
   const actorName = React.useMemo(() => {
     if (activity.metadata?.actor?.username) return activity.metadata.actor.username;
     const member = members.find((m) => m.userId === activity.actorUserId || m.publicId === activity.actorUserId);
@@ -83,6 +211,11 @@ function ActivityItem({
     return activity.entityId;
   }, [activity, boards]);
 
+  const activityMessage = React.useMemo(
+    () => getActivityMessage(activity, members),
+    [activity, members],
+  );
+
   return (
     <div className="flex items-center gap-4">
       <div className="flex size-10 items-center justify-center rounded-full bg-muted text-xs font-bold">
@@ -91,9 +224,9 @@ function ActivityItem({
       <div className="flex-1">
         <p className="text-sm">
           <span className="font-semibold text-primary">{actorName}</span>{" "}
-          <span className="italic">{activity.actionType}</span> on{" "}
-          <span className="font-semibold">{activity.entityType}</span>{" "}
-          <span className="text-muted-foreground">{entityName}</span>
+          <span className="text-muted-foreground">{activityMessage}</span>{" "}
+          <span className="text-muted-foreground">-</span>{" "}
+          <span className="font-semibold">{entityName}</span>
           {activity.entityType === "card" && activity.metadata?.listName && (
             <>
               {" "}
@@ -108,7 +241,7 @@ function ActivityItem({
           )}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {dateFormatter.format(new Date(activity.createdAt))}
+          {formatActivityAge(activity.createdAt)}
         </p>
       </div>
       <Badge variant="outline">{activity.actionType.split(".")[1]}</Badge>

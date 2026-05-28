@@ -20,10 +20,11 @@ export type UseWorkspaceActivitiesOptions = {
 export function useStatisticsSummary(
   workspaceId: string | undefined,
   range: StatisticsRange = "7d",
+  boardId?: string,
 ) {
   return useQuery({
-    queryKey: ["statistics", workspaceId, range],
-    queryFn: () => getStatisticsSummary(workspaceId as string, range),
+    queryKey: ["statistics", workspaceId, range, boardId],
+    queryFn: () => getStatisticsSummary(workspaceId as string, range, boardId),
     enabled: !!workspaceId,
   });
 }
@@ -31,12 +32,13 @@ export function useStatisticsSummary(
 export function useWorkspaceActivities(
   workspaceId: string | undefined,
   options: UseWorkspaceActivitiesOptions = {},
+  boardId?: string,
 ) {
   const { page = 1, limit = 10, ...rest } = options;
   return useQuery({
-    queryKey: ["activities", workspaceId, page, limit, rest],
+    queryKey: ["activities", workspaceId, page, limit, rest, boardId],
     queryFn: () =>
-      getWorkspaceActivities(workspaceId as string, { page, limit, ...rest }),
+      getWorkspaceActivities(workspaceId as string, { page, limit, ...rest }, boardId),
     enabled: !!workspaceId,
   });
 }
